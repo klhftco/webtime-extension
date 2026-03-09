@@ -39,9 +39,16 @@ body {
     color: var(--muted);
 }
 
-.popup-shell__status {
+.popup-shell__status,
+.popup-footer {
     margin: 0 0 1rem;
     color: var(--muted);
+}
+
+.popup-footer {
+    margin-top: 0.9rem;
+    margin-bottom: 0;
+    text-align: center;
 }
 
 .metric-grid {

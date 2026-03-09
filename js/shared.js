@@ -1,12 +1,13 @@
 'use strict';
 
 const STORAGE_KEYS = {
-    sync: ['defaultDailyLimitMinutes'],
+    sync: ['blockedSites', 'siteLimitsByHostname'],
     local: ['usageByDay']
 };
 
 const DEFAULT_SETTINGS = {
-    defaultDailyLimitMinutes: 60
+    blockedSites: [],
+    siteLimitsByHostname: {}
 };
 
 const CHART_COLORS = [
@@ -41,6 +42,107 @@ function normalizeHostname(hostname) {
         .replace(/^https?:\/\//, '')
         .replace(/\/.*$/, '')
         .replace(/^www\./, '');
+}
+
+function normalizeHostnames(values) {
+    return Array.from(
+        new Set(
+            values
+                .map((value) => normalizeSiteKey(value))
+                .filter(Boolean)
+        )
+    ).sort();
+}
+
+function normalizeSiteLimits(limitMap) {
+    return Object.entries(limitMap || {}).reduce((normalized, [hostname, minutes]) => {
+        const cleanHostname = normalizeSiteKey(hostname);
+        const cleanMinutes = clampLimitMinutes(minutes);
+
+        if (!cleanHostname || cleanMinutes === null) {
+            return normalized;
+        }
+
+        normalized[cleanHostname] = cleanMinutes;
+        return normalized;
+    }, {});
+}
+
+function clampLimitMinutes(value) {
+    if (value === '' || value === null || typeof value === 'undefined') {
+        return null;
+    }
+
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue)) {
+        return null;
+    }
+
+    return Math.min(1440, Math.max(1, Math.round(numericValue)));
+}
+
+function normalizeSiteKey(value) {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return '';
+    }
+
+    const parsed = safeParseUrl(trimmed) || safeParseUrl(`https://${trimmed}`);
+    if (!parsed) {
+        return normalizeHostname(trimmed);
+    }
+
+    const hostname = normalizeHostname(parsed.hostname);
+    if (!hostname) {
+        return '';
+    }
+
+    const pathname = parsed.pathname
+        .replace(/\/{2,}/g, '/')
+        .replace(/\/$/, '');
+
+    if (!pathname || pathname === '/') {
+        return hostname;
+    }
+
+    return `${hostname}${pathname}`;
+}
+
+function buildUrlCandidates(urlValue) {
+    const parsed = typeof urlValue === 'string'
+        ? (safeParseUrl(urlValue) || safeParseUrl(`https://${urlValue}`))
+        : urlValue;
+
+    if (!parsed || !parsed.hostname) {
+        return [];
+    }
+
+    const hostname = normalizeHostname(parsed.hostname);
+    if (!hostname) {
+        return [];
+    }
+
+    const pathname = (parsed.pathname || '/')
+        .replace(/\/{2,}/g, '/')
+        .replace(/\/$/, '');
+
+    if (!pathname || pathname === '/') {
+        return [hostname];
+    }
+
+    const segments = pathname.split('/').filter(Boolean);
+    const candidates = [];
+
+    for (let index = segments.length; index >= 1; index -= 1) {
+        candidates.push(`${hostname}/${segments.slice(0, index).join('/')}`);
+    }
+
+    candidates.push(hostname);
+    return candidates;
 }
 
 function getTodayKey() {

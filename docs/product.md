@@ -6,13 +6,14 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 
 ## v0 Scope
 
-- Track time by unique hostname for the focused tab of the active window.
+- Track time by normalized site key for the focused tab of the active window.
 - Show current-site status in the popup.
-- Show a popup pie-chart breakdown of today's tracked time by hostname.
-- Show today's total time for the current hostname and its assigned limit, if one exists.
+- Show a popup pie-chart breakdown of today's tracked time by site key.
+- Show today's total time for the current site key and its assigned limit, if one exists.
 - Let the user maintain a blocked-site list in the extension options page.
 - Let the user maintain per-site daily limits in the extension options page.
-- Enforce per-site daily limits only when the current site is also on the blocked-site list.
+- Enforce per-site daily limits by blocking sites once they reach their assigned limit.
+- Treat blocked-site entries as immediate `0m` limits.
 - Enforce scheduled blocked windows for blocked sites.
 - Require a cooldown before changing protected settings such as the blocked-site list or enforcement state.
 

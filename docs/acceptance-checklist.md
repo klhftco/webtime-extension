@@ -12,15 +12,16 @@ Use this list before considering a change ready.
 
 - Time is accumulated only for the focused tab of the active window.
 - Browser pages and non-`http`/`https` pages are ignored without errors.
-- The popup shows the current hostname and today's tracked time for that hostname.
-- The popup shows the assigned per-site limit for the current hostname when one exists.
-- The popup shows no assigned limit for a hostname with no explicit limit rule.
-- The popup shows a pie-chart breakdown of today's tracked usage by hostname.
-- A per-site limit can be saved in the options page for a normalized hostname.
-- Equivalent hostnames such as `www.youtube.com` and `youtube.com` resolve to the same normalized entry.
-- A site that exceeds its limit but is not on the blocked-site list is not blocked.
-- A site that exceeds its limit and is on the blocked-site list shows the blocking overlay.
-- A blocked site that is below its limit is not blocked by the limit rule alone, unless a blocked schedule window also applies.
+- The popup shows the current site key and today's tracked time for that site key.
+- The popup shows the assigned per-site limit for the current site key when one exists.
+- The popup shows no assigned limit for a site key with no explicit limit rule.
+- The popup shows a pie-chart breakdown of today's tracked usage by site key.
+- A per-site limit can be saved in the options page for a normalized site key.
+- Equivalent hostnames such as `www.youtube.com` and `youtube.com` resolve to the same normalized root entry.
+- A path-specific entry such as `youtube.com/shorts` is matched separately from `youtube.com`.
+- A site that exceeds its assigned per-site limit is redirected to the blocked page.
+- A site on the blocked-site list behaves like a site with a `0m` limit.
+- A site key with no explicit limit and not on the blocked-site list is not blocked by the limit rule alone.
 - Protected settings changes require the configured cooldown flow.
 
 ## Documentation

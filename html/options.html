@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WebTime Settings</title>
+    <link href="../css/options.css" rel="stylesheet">
+</head>
+<body>
+    <main class="settings-shell">
+        <section class="settings-hero">
+            <p class="settings-hero__eyebrow">WebTime</p>
+            <h1>Blocked sites and limits</h1>
+            <p>Use one hostname or site path per line for blocked sites, such as <code>youtube.com</code> or <code>youtube.com/shorts</code>. Blocked sites act like a <code>0</code>-minute daily limit. For limits, enter one rule per line in the format <code>site-key minutes</code>.</p>
+        </section>
+
+        <form data-role="settings-form" class="settings-form">
+            <label class="field">
+                <span>Blocked sites</span>
+                <textarea name="blockedSites" rows="10" placeholder="youtube.com&#10;youtube.com/shorts"></textarea>
+            </label>
+
+            <label class="field">
+                <span>Per-site daily limits</span>
+                <textarea name="siteLimits" rows="10" placeholder="youtube.com 30&#10;youtube.com/shorts 10"></textarea>
+            </label>
+
+            <div class="form-actions">
+                <button type="submit">Save settings</button>
+                <p data-role="save-status" class="save-status"></p>
+            </div>
+        </form>
+    </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/options.js"></script>
+</body>
+</html>

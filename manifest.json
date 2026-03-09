@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "WebTime",
   "version": "0.1.0",
-  "description": "Track time on the focused tab of the active window and show a popup breakdown.",
+  "description": "Track time on the focused tab of the active window and enforce per-site limits.",
   "icons": {
     "16": "icon/icon-16.png",
     "32": "icon/icon-32.png",
@@ -17,6 +17,10 @@
     "default_popup": "html/popup.html",
     "default_title": "WebTime"
   },
+  "options_ui": {
+    "page": "html/options.html",
+    "open_in_tab": true
+  },
   "background": {
     "service_worker": "js/background.js"
   },
@@ -24,5 +28,20 @@
     "alarms",
     "storage",
     "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "js/shared.js",
+        "js/content.js"
+      ],
+      "run_at": "document_idle"
+    }
   ]
 }

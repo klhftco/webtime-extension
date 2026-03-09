@@ -7,6 +7,7 @@ const limitEl = document.querySelector('[data-role="limit"]');
 const chartEl = document.querySelector('[data-role="chart"]');
 const legendEl = document.querySelector('[data-role="legend"]');
 const totalEl = document.querySelector('[data-role="total"]');
+const footerEl = document.querySelector('[data-role="footer"]');
 
 bootstrapPopup();
 
@@ -20,6 +21,7 @@ async function bootstrapPopup() {
 
     renderCurrentSite(response.currentSite);
     renderChart(response.chart);
+    renderFooter(response.settingsSummary);
 }
 
 function renderCurrentSite(site) {
@@ -31,10 +33,25 @@ function renderCurrentSite(site) {
         return;
     }
 
-    siteEl.textContent = site.hostname;
+    siteEl.textContent = site.siteKey;
     usageEl.textContent = formatMinutes(site.todayMinutes);
-    limitEl.textContent = `${site.dailyLimitMinutes}m`;
-    statusEl.textContent = 'Tracking the focused tab of the active window.';
+    limitEl.textContent = site.limitMinutes === null ? 'None' : `${site.limitMinutes}m`;
+
+    if (site.shouldOverlayBlock) {
+        statusEl.textContent = site.isBlocked
+            ? 'Blocked: site is on the blocked list, which acts as a 0-minute limit.'
+            : 'Blocked: site has reached its assigned daily limit.';
+        return;
+    }
+
+    if (site.limitMinutes !== null) {
+        statusEl.textContent = site.isBlocked
+            ? 'Blocked list entry detected. This site will block immediately.'
+            : 'Tracking the focused tab of the active window.';
+        return;
+    }
+
+    statusEl.textContent = 'Tracking the focused tab of the active window. No explicit site limit.';
 }
 
 function renderChart(chart) {
@@ -65,4 +82,8 @@ function renderChart(chart) {
             </li>
         `)
         .join('');
+}
+
+function renderFooter(summary) {
+    footerEl.textContent = `${summary.limitedSitesCount} limited sites, ${summary.blockedSitesCount} blocked sites`;
 }

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WebTime Settings</title>
+    <link href="../css/options.css" rel="stylesheet">
+</head>
+<body>
+    <main class="settings-shell">
+        <section class="settings-hero">
+            <p class="settings-hero__eyebrow">WebTime</p>
+            <h1>Website time controls</h1>
+            <p>Set a default daily limit and keep a simple blocked-site list. One hostname per line.</p>
+        </section>
+
+        <form data-role="settings-form" class="settings-form">
+            <label class="field">
+                <span>Default daily limit (minutes)</span>
+                <input type="number" min="5" max="720" step="5" name="defaultDailyLimitMinutes" required>
+            </label>
+
+            <label class="field">
+                <span>Blocked sites</span>
+                <textarea name="blockedSites" rows="12" placeholder="youtube.com&#10;reddit.com"></textarea>
+            </label>
+
+            <div class="form-actions">
+                <button type="submit">Save settings</button>
+                <p data-role="save-status" class="save-status"></p>
+            </div>
+        </form>
+    </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/options.js"></script>
+</body>
+</html>

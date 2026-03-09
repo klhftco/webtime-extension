@@ -2,23 +2,25 @@
 
 ## Goal
 
-Maintain a clean Manifest V3 Chrome extension starting point for future work.
+Build a simple Chrome extension that helps a user reduce time on distracting websites.
 
-## Current scope
+## Target v0
 
-- Load successfully as an unpacked MV3 extension.
-- Show a static popup.
-- Stay intentionally free of runtime behavior until features are chosen.
+- Track daily time spent on the active website by hostname.
+- Show current-site status in the popup.
+- Let the user maintain a blocked-site list.
+- Enforce a single default daily limit across all tracked sites.
 
 ## Non-goals
 
-- Background processing.
-- Content injection.
-- Persistent settings.
-- Time-tracking or blocking logic.
+- Syncing analytics to a backend.
+- Per-category or per-site custom schedules.
+- Cross-browser support beyond MV3 Chrome compatibility.
+- Perfectly tamper-proof blocking.
 
 ## Design principles
 
-- Minimal surface area.
-- Explicit additions only.
-- Easy to inspect and evolve.
+- Fast to understand.
+- Easy to verify manually.
+- Minimal permissions.
+- Prefer durable simplicity over feature breadth.

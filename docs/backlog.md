@@ -2,7 +2,8 @@
 
 ## Next likely steps
 
-- Add an empty options page if settings become necessary.
-- Add a background service worker when persistent runtime logic is needed.
-- Add content scripts only when page-level behavior is required.
-- Introduce tests once pure logic or multiple runtime surfaces exist.
+- Add per-site custom daily limits.
+- Add reset controls for today's usage.
+- Add import/export for settings.
+- Add a small test harness for pure helper functions.
+- Replace approximate active-tab tracking with richer idle detection if needed.

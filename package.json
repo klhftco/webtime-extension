@@ -1,10 +1,11 @@
 {
   "name": "webtime-extension",
   "version": "0.1.0",
-  "description": "Minimal Manifest V3 Chrome extension starter.",
+  "description": "Manifest v3 Chrome extension scaffold for website time management controls.",
   "private": true,
   "scripts": {
-    "check": "powershell -NoProfile -Command \"Get-Content manifest.json | ConvertFrom-Json | Out-Null; Get-Content package.json | ConvertFrom-Json | Out-Null; Write-Output 'manifest/package json ok'\""
+    "check": "node -e \"const fs=require('fs'); JSON.parse(fs.readFileSync('manifest.json','utf8')); JSON.parse(fs.readFileSync('package.json','utf8')); console.log('manifest/package json ok')\"",
+    "start:notes": "node -e \"console.log('Load the unpacked extension from this repo in chrome://extensions and use docs/acceptance-checklist.md for manual verification.')\""
   },
   "devDependencies": {
     "svgexport": "^0.2.8"

@@ -8,9 +8,28 @@
 </head>
 <body>
     <main class="popup-shell">
-        <p class="popup-shell__eyebrow">Manifest V3</p>
-        <h1>WebTime starter</h1>
-        <p class="popup-shell__body">This repository is currently a zero-functionality Chrome extension scaffold.</p>
+        <p class="popup-shell__eyebrow">WebTime</p>
+        <h1>Today on <span data-role="site">Loading...</span></h1>
+        <p class="popup-shell__status" data-role="status">Loading...</p>
+
+        <section class="metric-grid">
+            <article class="metric-card">
+                <p class="metric-card__label">Usage</p>
+                <p class="metric-card__value" data-role="usage">--</p>
+            </article>
+            <article class="metric-card">
+                <p class="metric-card__label">Remaining</p>
+                <p class="metric-card__value" data-role="remaining">--</p>
+            </article>
+        </section>
+
+        <div class="action-row">
+            <button type="button" data-role="toggle-block">Block site</button>
+            <button type="button" class="button-secondary" data-role="open-options">Settings</button>
+        </div>
     </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/popup.js"></script>
 </body>
 </html>

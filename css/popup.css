@@ -1,45 +1,94 @@
 :root {
     color-scheme: light;
-    --bg: #f5f0e7;
-    --panel: #fffaf2;
-    --text: #20150f;
-    --muted: #74614f;
-    --border: #dccfbe;
+    --bg: #f4efe5;
+    --panel: #fff9f1;
+    --text: #24170f;
+    --muted: #7a6654;
+    --accent: #bf5b31;
+    --accent-strong: #8f3f20;
+    --border: #ddcfbe;
 }
 
 body {
-    width: 320px;
+    width: 340px;
     margin: 0;
     font-family: Georgia, "Times New Roman", serif;
     color: var(--text);
     background:
-        radial-gradient(circle at top right, rgba(135, 94, 59, 0.12), transparent 36%),
-        linear-gradient(180deg, #f7f1e8 0%, #efe4d5 100%);
+        radial-gradient(circle at top right, rgba(191, 91, 49, 0.18), transparent 40%),
+        linear-gradient(180deg, #f7f1e6 0%, #efe3d3 100%);
+}
+
+button {
+    border: 0;
+    border-radius: 999px;
+    padding: 0.85rem 1rem;
+    font: inherit;
+    color: #fff8f2;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+button:hover {
+    background: var(--accent-strong);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.button-secondary {
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--border);
 }
 
 .popup-shell {
     padding: 1.25rem;
 }
 
-.popup-shell__eyebrow {
-    margin: 0 0 0.5rem;
+.popup-shell h1 {
+    margin: 0 0 0.6rem;
+    font-size: 1.6rem;
+    line-height: 1.05;
+}
+
+.popup-shell__eyebrow,
+.metric-card__label {
+    margin: 0;
     font-size: 0.72rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--muted);
 }
 
-.popup-shell h1 {
-    margin: 0 0 0.6rem;
-    font-size: 1.7rem;
-    line-height: 1;
+.popup-shell__status {
+    margin: 0 0 1rem;
+    color: var(--muted);
 }
 
-.popup-shell__body {
-    margin: 0;
-    padding: 0.9rem 1rem;
+.metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.metric-card {
+    padding: 0.9rem;
     border: 1px solid var(--border);
     border-radius: 1rem;
     background: var(--panel);
-    color: var(--muted);
+}
+
+.metric-card__value {
+    margin: 0.35rem 0 0;
+    font-size: 1.3rem;
+}
+
+.action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
 }

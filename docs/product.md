@@ -4,21 +4,34 @@
 
 Build a simple Chrome extension that helps a user reduce time on distracting websites.
 
-## Target v0
+## v0 Scope
 
-- Track daily time spent on the active website by hostname.
+- Track time by unique hostname for the focused tab of the active window.
 - Show current-site status in the popup.
+- Show a popup pie-chart breakdown of today's tracked time by hostname.
+- Show today's total time for the current hostname and its current limit, if one applies.
 - Let the user maintain a blocked-site list.
-- Enforce a single default daily limit across all tracked sites.
+- Enforce scheduled blocked windows for blocked sites.
+- Require a cooldown before changing protected settings such as the blocked-site list or enforcement state.
 
-## Non-goals
+## v0 Non-goals
 
+- Tracking all tabs in all windows at once.
+- Per-site custom schedules.
+- Password-based protection against disabling the extension.
+- Preventing Chrome-level disable or uninstall.
 - Syncing analytics to a backend.
-- Per-category or per-site custom schedules.
 - Cross-browser support beyond MV3 Chrome compatibility.
-- Perfectly tamper-proof blocking.
 
-## Design principles
+## Later / v1 Candidates
+
+- Expand tracking beyond the focused tab of the active window if the product model becomes clear.
+- Add richer schedule controls.
+- Add per-site custom rules or limits.
+- Add stronger friction for settings changes beyond a simple cooldown.
+- Add import/export or history views if the base experience proves useful.
+
+## Design Principles
 
 - Fast to understand.
 - Easy to verify manually.

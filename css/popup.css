@@ -1,16 +1,17 @@
 :root {
     color-scheme: light;
-    --bg: #f4efe5;
     --panel: #fff9f1;
     --text: #24170f;
     --muted: #7a6654;
-    --accent: #bf5b31;
-    --accent-strong: #8f3f20;
     --border: #ddcfbe;
 }
 
+* {
+    box-sizing: border-box;
+}
+
 body {
-    width: 340px;
+    width: 360px;
     margin: 0;
     font-family: Georgia, "Times New Roman", serif;
     color: var(--text);
@@ -19,38 +20,13 @@ body {
         linear-gradient(180deg, #f7f1e6 0%, #efe3d3 100%);
 }
 
-button {
-    border: 0;
-    border-radius: 999px;
-    padding: 0.85rem 1rem;
-    font: inherit;
-    color: #fff8f2;
-    background: var(--accent);
-    cursor: pointer;
-}
-
-button:hover {
-    background: var(--accent-strong);
-}
-
-button:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.button-secondary {
-    color: var(--text);
-    background: transparent;
-    border: 1px solid var(--border);
-}
-
 .popup-shell {
     padding: 1.25rem;
 }
 
 .popup-shell h1 {
     margin: 0 0 0.6rem;
-    font-size: 1.6rem;
+    font-size: 1.55rem;
     line-height: 1.05;
 }
 
@@ -87,8 +63,54 @@ button:disabled {
     font-size: 1.3rem;
 }
 
-.action-row {
+.chart-panel {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 1.2rem;
+    background: var(--panel);
+}
+
+.chart-panel__ring {
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 0.9rem;
+    border-radius: 50%;
+    border: 1px solid rgba(36, 23, 15, 0.08);
+    background: linear-gradient(180deg, #f2e7d6 0%, #eadbc4 100%);
+}
+
+.chart-panel__total {
+    margin: 0 0 0.8rem;
+    text-align: center;
+    color: var(--muted);
+}
+
+.legend {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.legend__item {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+    grid-template-columns: 12px 1fr auto;
+    gap: 0.65rem;
+    align-items: center;
+    padding: 0.35rem 0;
+}
+
+.legend__swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.legend__host {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.legend__value {
+    color: var(--muted);
 }

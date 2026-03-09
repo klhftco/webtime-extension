@@ -19,6 +19,8 @@ Minimal Manifest V3 scaffold for a Chrome extension focused on website time trac
 ## Docs
 
 - `AGENTS.md`
+- `docs/development.md`
+- `docs/deployment.md`
 - `docs/product.md`
 - `docs/architecture.md`
 - `docs/acceptance-checklist.md`

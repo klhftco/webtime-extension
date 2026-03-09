@@ -2,40 +2,58 @@
 
 ## Runtime Pieces
 
-- `manifest.json`: MV3 manifest defining the popup, background service worker, content script, and required permissions.
-- `background` service worker: owns active-window tab tracking, schedule evaluation, settings updates, and popup data assembly.
-- `popup`: shows current-host status plus a pie-chart breakdown of today's tracked usage by hostname.
-- `content` script: renders the blocked-state overlay on matching pages.
-- `options` or settings surface: manages blocked sites, schedules, and cooldown-protected changes.
+- `manifest.json`: MV3 manifest defining the popup, background service worker, content script, options page, and required permissions.
+- `background` service worker: owns active-window tab tracking, site status evaluation, limit checks, blocked-list checks, and popup data assembly.
+- `popup`: shows current-host status, assigned limit if one exists, and a pie-chart breakdown of today's tracked usage by hostname.
+- `content` script: renders the blocked-state overlay when a site should be blocked.
+- `options` page: manages blocked sites, per-site daily limits, schedules, and cooldown-protected changes.
 
 ## v0 Tracking Model
 
 - Track only the focused tab of the active window.
 - Attribute usage by normalized hostname.
-- Accumulate usage for the current day only in the popup-facing view.
+- Merge equivalent hostnames such as `www.youtube.com` and `youtube.com`.
 - Ignore browser-internal pages and non-`http`/`https` URLs.
 
 ## Data Shape
 
-- Settings store:
-  - blocked hostnames
-  - blocked schedule definition
-  - cooldown configuration or protected-change state
 - Local usage store:
-  - usage keyed by ISO date, then hostname, with values stored in seconds or milliseconds
+  - `usageByDay[isoDate][hostname] = seconds`
+- Settings store:
+  - `blockedSites = [hostname, ...]`
+  - `siteLimitsByHostname[hostname] = minutes`
+  - blocked-window schedule definition
+  - cooldown configuration or protected-change state
+
+## Limit Enforcement
+
+- Normalize the current hostname.
+- Read today's accumulated usage for that hostname.
+- Read the per-site limit for that hostname, if one exists.
+- If no per-site limit exists, the site is not over-limit.
+- If a per-site limit exists, compare today's usage against that limit.
+- Only block with the overlay when the site is both:
+  - on the blocked-site list
+  - over its per-site daily limit, or inside a blocked schedule window
+
+## UI Surfaces
+
+- `popup` reads current-host usage, limit status, and today's hostname breakdown.
+- `options` page edits blocked sites and per-site limits.
 
 ## Likely Permissions
 
 - `storage`: persist settings and local usage.
 - `tabs`: inspect the active tab in the active window.
 - `alarms`: periodically flush tracked time in MV3.
-- Host permissions for pages where blocking overlays will run.
+- Host permissions: required for content-script overlay injection on web pages.
 
 ## Key Tradeoffs
 
 - Time tracking is approximate and event-driven, not perfectly continuous.
 - Blocking via content overlay is easier to build and reason about than network-level blocking.
-- Popup visualization should stay lightweight; v0 only needs a simple hostname usage breakdown, not a full analytics dashboard.
+- Limits are per-site only in v0; group rules and richer schedule logic are deferred.
+- Storing limits in minutes keeps editing simpler, while usage remains in seconds for tracking precision.
 
 ## When Changing Architecture
 

@@ -20,6 +20,11 @@
 
 - Local usage store:
   - `usageByDay[isoDate][siteKey] = seconds`
+  - retain daily buckets for up to 4 weeks of prior insights
+  - use a local-day key rather than a UTC-day key for product-facing daily views
+  - support either:
+    - derived all-time totals by summing stored usage
+    - or an explicit `usageAllTime[siteKey] = seconds` aggregate
 - Settings store:
   - `blockedSites = [siteKey, ...]`
   - `siteLimitsByHostname[siteKey] = minutes`
@@ -40,6 +45,10 @@
 
 - `popup` reads current-site usage, limit status, and today's site-key breakdown.
 - `options` page edits blocked sites and per-site limits.
+- Future analytics surfaces should expose:
+  - daily insights for the current day plus up to 4 weeks prior
+  - all-time usage summaries
+  - a reset control that zeros all stored usage
 
 ## Likely Permissions
 
@@ -54,6 +63,8 @@
 - Redirecting to an internal blocked page is easier to build and reason about than network-level blocking.
 - Limits are per-site only in v0; group rules and richer schedule logic are deferred.
 - Storing limits in minutes keeps editing simpler, while usage remains in seconds for tracking precision.
+- Historical daily insights require a clear retention rule; the product target is 4 weeks of prior day-level visibility.
+- All-time usage can be derived from historical buckets or stored separately; deriving is simpler, while a separate rollup can be cheaper to query.
 
 ## When Changing Architecture
 

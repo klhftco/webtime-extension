@@ -31,6 +31,9 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 ## Later / v1 Candidates
 
 - Expand tracking beyond the focused tab of the active window if the product model becomes clear.
+- Support daily time insights viewing for up to 4 weeks prior.
+- Track usage over all time until the user performs an explicit reset in the options page.
+- Add a reset control in the options page that zeros all tracked usage.
 - Add site-group limits.
 - Add richer schedule controls.
 - Add stronger friction for settings changes beyond a simple cooldown.

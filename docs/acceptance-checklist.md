@@ -29,3 +29,11 @@ Use this list before considering a change ready.
 - `AGENTS.md` remains short and points to `docs/`.
 - Any new runtime piece or permission is documented in `docs/architecture.md`.
 - Any scope change is reflected in `docs/product.md` or `docs/backlog.md`.
+
+## v1 Analytics Expectations
+
+- The product can show daily usage insights for the current day plus up to 4 weeks prior.
+- Daily insights are grouped by the user's local day boundary, not UTC midnight.
+- The product can show all-time usage totals until the user explicitly resets usage.
+- Resetting usage from the options page zeros all stored usage and all derived totals.
+- After reset, the current-day view, prior-day insights, and all-time totals all show zero usage until new browsing occurs.

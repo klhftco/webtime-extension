@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Chrome Extension Starter Kit",
-  "description": "",
-  "version": "1.0.0",
+  "name": "WebTime",
+  "version": "0.1.0",
+  "description": "A minimal Manifest V3 Chrome extension starting point.",
   "icons": {
     "16": "icon/icon-16.png",
     "32": "icon/icon-32.png",
@@ -15,40 +15,6 @@
       "38": "icon/icon-38.png"
     },
     "default_popup": "html/popup.html",
-    "default_title": "Chrome Extension Starter Kit"
-  },
-  "options_ui": {
-    "page": "html/options.html"
-  },
-  "background": {
-    "service_worker": "js/background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "http://mail.google.com/",
-        "http://*.heureka.cz/*/recenze/*",
-        "*://*/*",
-        "<all_urls>"
-      ],
-      "js": [
-        "js/config.js",
-        "js/fn.js",
-        "js/content.js"
-      ],
-      "css": [
-        "css/content.css"
-      ],
-      "run_at": "document_end"
-    }
-  ],
-  "permissions": [
-    "tabs",
-    "contextMenus",
-    "declarativeNetRequest",
-    "webNavigation"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ]
+    "default_title": "WebTime"
+  }
 }

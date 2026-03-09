@@ -1,9 +1,11 @@
 {
-  "name": "chrome-extension-starter-pack",
-  "version": "1.0.0",
-  "description": "",
+  "name": "webtime-extension",
+  "version": "0.1.0",
+  "description": "Minimal Manifest V3 Chrome extension starter.",
   "private": true,
-  "homepage": "",
+  "scripts": {
+    "check": "powershell -NoProfile -Command \"Get-Content manifest.json | ConvertFrom-Json | Out-Null; Get-Content package.json | ConvertFrom-Json | Out-Null; Write-Output 'manifest/package json ok'\""
+  },
   "devDependencies": {
     "svgexport": "^0.2.8"
   }

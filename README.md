@@ -1,25 +1,26 @@
-# Chrome Extension Starter Kit
+# WebTime
 
+Minimal Manifest V3 Chrome extension starter with no runtime functionality.
 
-## Structure
+## Current shape
 
+- Static browser-action popup
+- No background service worker
+- No content scripts
+- No extension permissions
+- No options page
 
-### background.js
+## Development
 
-- Runs on the background all the time
-- Common for all windows and tabs
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Load this repository as an unpacked extension.
+4. Run `npm run check` for lightweight JSON validation.
 
+## Docs
 
-### content.js
-
-- Is injected to every page specified in manifest.json (content_scripts.matches)
-
-
-### popup.js
-
-- Is run separately for every given page
-
-
-### options.js
-
-- Runs only in Options page
+- `AGENTS.md`
+- `docs/product.md`
+- `docs/architecture.md`
+- `docs/acceptance-checklist.md`
+- `docs/backlog.md`

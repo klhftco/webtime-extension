@@ -28,16 +28,21 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - Syncing analytics to a backend.
 - Cross-browser support beyond MV3 Chrome compatibility.
 
-## Later / v1 Candidates
+## v1 Candidates
 
-- Expand tracking beyond the focused tab of the active window if the product model becomes clear.
 - Support daily time insights viewing for up to 4 weeks prior.
 - Track usage over all time until the user performs an explicit reset in the options page.
 - Add a reset control in the options page that zeros all tracked usage.
+- Add import/export for settings.
+
+## v2 Candidates
+
 - Add site-group limits.
 - Add richer schedule controls.
 - Add stronger friction for settings changes beyond a simple cooldown.
-- Add import/export or history views if the base experience proves useful.
+- Add a small test harness for pure helper functions.
+- Replace approximate active-tab tracking with richer idle detection if needed.
+- Expand tracking beyond the focused tab of the active window if the product model becomes clear.
 
 ## Design Principles
 

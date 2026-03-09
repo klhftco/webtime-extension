@@ -32,4 +32,3 @@ Manifest V3 Chrome extension scaffold with tracking, per-site limits, and redire
 - `docs/product.md`
 - `docs/architecture.md`
 - `docs/acceptance-checklist.md`
-- `docs/backlog.md`

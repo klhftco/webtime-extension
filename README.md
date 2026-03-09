@@ -20,6 +20,8 @@ Minimal Manifest V3 Chrome extension starter with no runtime functionality.
 ## Docs
 
 - `AGENTS.md`
+- `docs/development.md`
+- `docs/deployment.md`
 - `docs/product.md`
 - `docs/architecture.md`
 - `docs/acceptance-checklist.md`

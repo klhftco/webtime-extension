@@ -6,7 +6,8 @@ Use this repo as a bare MV3 extension harness.
 
 1. Read `docs/product.md` for current scope.
 2. Read `docs/architecture.md` before adding runtime behavior.
-3. Read `docs/acceptance-checklist.md` before closing any task.
+3. Read `docs/development.md` for the repo workflow.
+4. Read `docs/acceptance-checklist.md` before closing any task.
 
 ## Working rules
 

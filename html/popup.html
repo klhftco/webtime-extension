@@ -14,19 +14,20 @@
 
         <section class="metric-grid">
             <article class="metric-card">
-                <p class="metric-card__label">Usage</p>
+                <p class="metric-card__label">Current site</p>
                 <p class="metric-card__value" data-role="usage">--</p>
             </article>
             <article class="metric-card">
-                <p class="metric-card__label">Remaining</p>
-                <p class="metric-card__value" data-role="remaining">--</p>
+                <p class="metric-card__label">Daily limit</p>
+                <p class="metric-card__value" data-role="limit">--</p>
             </article>
         </section>
 
-        <div class="action-row">
-            <button type="button" data-role="toggle-block">Block site</button>
-            <button type="button" class="button-secondary" data-role="open-options">Settings</button>
-        </div>
+        <section class="chart-panel">
+            <div class="chart-panel__ring" data-role="chart" aria-hidden="true"></div>
+            <p class="chart-panel__total" data-role="total">Loading...</p>
+            <ul class="legend" data-role="legend"></ul>
+        </section>
     </main>
 
     <script src="../js/shared.js"></script>

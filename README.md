@@ -1,13 +1,19 @@
 # WebTime
 
-Minimal Manifest V3 scaffold for a Chrome extension focused on website time tracking and lightweight blocking.
+Manifest V3 Chrome extension scaffold with the first tracking slice implemented.
 
-## Current scope
+## Current implementation
 
-- Track time on the active `http` and `https` tab by hostname.
-- Enforce a default daily time limit with a page overlay.
-- Allow manual blocking per hostname from the popup or options page.
-- Keep future agent work grounded in `AGENTS.md` and `docs/`.
+- Track time for the focused `http` or `https` tab of the active window.
+- Store today's usage by hostname in extension storage.
+- Show the current hostname and tracked time in the popup.
+- Show a popup pie-chart breakdown of today's usage by hostname.
+
+## Not implemented yet
+
+- Blocked-site management
+- Scheduled blocked windows
+- Cooldown-protected settings changes
 
 ## Development
 

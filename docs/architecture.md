@@ -1,35 +1,44 @@
 # Architecture
 
-## Runtime pieces
+## Runtime Pieces
 
-- `js/background.js`: service worker that owns settings, time accumulation, and tab state refresh.
-- `js/content.js`: receives the effective site state and renders or removes the overlay.
-- `js/popup.js`: shows current-site status and toggles manual blocking.
-- `js/options.js`: edits the blocked list and default daily limit.
-- `js/shared.js`: shared constants and pure helpers that can run in every extension context.
+- `manifest.json`: MV3 manifest defining the popup, background service worker, content script, and required permissions.
+- `background` service worker: owns active-window tab tracking, schedule evaluation, settings updates, and popup data assembly.
+- `popup`: shows current-host status plus a pie-chart breakdown of today's tracked usage by hostname.
+- `content` script: renders the blocked-state overlay on matching pages.
+- `options` or settings surface: manages blocked sites, schedules, and cooldown-protected changes.
 
-## Data model
+## v0 Tracking Model
 
-- `chrome.storage.sync.blockedSites`: array of normalized hostnames.
-- `chrome.storage.sync.defaultDailyLimitMinutes`: integer limit applied to every site.
-- `chrome.storage.local.usageByDay`: object keyed by ISO date, then hostname, with values in seconds.
+- Track only the focused tab of the active window.
+- Attribute usage by normalized hostname.
+- Accumulate usage for the current day only in the popup-facing view.
+- Ignore browser-internal pages and non-`http`/`https` URLs.
 
-## Permission rationale
+## Data Shape
+
+- Settings store:
+  - blocked hostnames
+  - blocked schedule definition
+  - cooldown configuration or protected-change state
+- Local usage store:
+  - usage keyed by ISO date, then hostname, with values stored in seconds or milliseconds
+
+## Likely Permissions
 
 - `storage`: persist settings and local usage.
-- `tabs`: inspect the active tab and refresh state across open tabs.
-- `alarms`: flush active time in MV3 without a persistent background page.
-- `contextMenus`: quick entry point to open settings from the action.
-- `host_permissions <all_urls>`: inject the content script on trackable pages.
+- `tabs`: inspect the active tab in the active window.
+- `alarms`: periodically flush tracked time in MV3.
+- Host permissions for pages where blocking overlays will run.
 
-## Known tradeoffs
+## Key Tradeoffs
 
-- Time tracking is approximate to the second and flushes on focus changes plus a 1-minute alarm heartbeat.
-- Blocking uses a DOM overlay, so a user can disable the extension and bypass it.
-- Hostname normalization strips `www.` and paths but does not collapse subdomains beyond that.
+- Time tracking is approximate and event-driven, not perfectly continuous.
+- Blocking via content overlay is easier to build and reason about than network-level blocking.
+- Popup visualization should stay lightweight; v0 only needs a simple hostname usage breakdown, not a full analytics dashboard.
 
-## When changing architecture
+## When Changing Architecture
 
-- Document new permissions here.
-- Add or update a manual verification scenario in `docs/acceptance-checklist.md`.
-- Keep the storage schema explicit and backwards-compatible when possible.
+- Document each new runtime surface here.
+- Record each new permission and why it is required.
+- Update `docs/acceptance-checklist.md` with a verification path for new behavior.

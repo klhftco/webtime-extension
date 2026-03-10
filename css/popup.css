@@ -4,6 +4,7 @@
     --text: #24170f;
     --muted: #7a6654;
     --border: #ddcfbe;
+    --button: #f4e6d3;
 }
 
 * {
@@ -18,6 +19,10 @@ body {
     background:
         radial-gradient(circle at top right, rgba(191, 91, 49, 0.18), transparent 40%),
         linear-gradient(180deg, #f7f1e6 0%, #efe3d3 100%);
+}
+
+button {
+    font: inherit;
 }
 
 .popup-shell {
@@ -75,6 +80,34 @@ body {
     border: 1px solid var(--border);
     border-radius: 1.2rem;
     background: var(--panel);
+}
+
+.chart-nav {
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+}
+
+.chart-nav__button {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    height: 40px;
+    color: var(--text);
+    background: var(--button);
+    cursor: pointer;
+}
+
+.chart-nav__button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.chart-nav__label {
+    margin: 0;
+    text-align: center;
+    color: var(--muted);
 }
 
 .chart-panel__ring {

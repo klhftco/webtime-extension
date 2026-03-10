@@ -8,10 +8,17 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 
 - Track time by normalized site key for the focused tab of the active window.
 - Show current-site status in the popup.
-- Show a popup pie-chart breakdown of today's tracked time by site key.
+- Show popup left and right controls that move the usage visualization by day.
+- Show a popup pie-chart breakdown of the selected day's tracked time by site key.
+- Keep the popup's current-site status and assigned limit tied to the current page, not the selected chart day.
+- Limit the popup pie chart to the top 15 site keys and group the remainder into `Other`.
 - Show today's total time for the current site key and its assigned limit, if one exists.
 - Let the user maintain a blocked-site list in the extension options page.
 - Let the user maintain per-site daily limits in the extension options page.
+- Show a weekly usage visualization in the options page as a stacked bar chart with 7 day bars.
+- Show aggregate total browser usage for the displayed week at the top of the weekly view.
+- When no day is selected in the weekly view, show a list of the top 30 site keys ranked by total weekly usage.
+- When a day is selected in the weekly view, show an unfiltered list of that day's site-key usage sorted by time with second-level resolution.
 - Enforce per-site daily limits by blocking sites once they reach their assigned limit.
 - Treat blocked-site entries as immediate `0m` limits.
 - Enforce scheduled blocked windows for blocked sites.

@@ -24,6 +24,12 @@
         </section>
 
         <section class="chart-panel">
+            <div class="chart-nav">
+                <button type="button" class="chart-nav__button" data-role="older-day" aria-label="Previous day">&larr;</button>
+                <p class="chart-nav__label" data-role="chart-day">Today</p>
+                <button type="button" class="chart-nav__button" data-role="newer-day" aria-label="Next day">&rarr;</button>
+            </div>
+
             <div class="chart-panel__ring" data-role="chart" aria-hidden="true"></div>
             <p class="chart-panel__total" data-role="total">Loading...</p>
             <ul class="legend" data-role="legend"></ul>

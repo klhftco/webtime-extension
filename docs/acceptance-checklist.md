@@ -15,7 +15,10 @@ Use this list before considering a change ready.
 - The popup shows the current site key and today's tracked time for that site key.
 - The popup shows the assigned per-site limit for the current site key when one exists.
 - The popup shows no assigned limit for a site key with no explicit limit rule.
-- The popup shows a pie-chart breakdown of today's tracked usage by site key.
+- The popup shows left and right controls for moving the pie chart dataset by day.
+- Changing the popup chart day does not change the current-site usage or assigned limit panel.
+- The popup shows a pie-chart breakdown of the selected day's tracked usage by site key.
+- The popup groups entries beyond the top 15 into `Other`.
 - A per-site limit can be saved in the options page for a normalized site key.
 - Equivalent hostnames such as `www.youtube.com` and `youtube.com` resolve to the same normalized root entry.
 - A path-specific entry such as `youtube.com/shorts` is matched separately from `youtube.com`.
@@ -37,3 +40,8 @@ Use this list before considering a change ready.
 - The product can show all-time usage totals until the user explicitly resets usage.
 - Resetting usage from the options page zeros all stored usage and all derived totals.
 - After reset, the current-day view, prior-day insights, and all-time totals all show zero usage until new browsing occurs.
+- The options page can show a 7-day stacked bar chart of usage with one bar per day.
+- The weekly options view shows aggregate total browser usage for the displayed week.
+- With no day selected, the weekly options view shows the top 30 site keys ranked by total weekly usage.
+- Selecting a day in the weekly chart shows an unfiltered list of that day's site-key usage.
+- The selected-day detail list shows usage with second-level resolution.

@@ -8,20 +8,41 @@ const chartEl = document.querySelector('[data-role="chart"]');
 const legendEl = document.querySelector('[data-role="legend"]');
 const totalEl = document.querySelector('[data-role="total"]');
 const footerEl = document.querySelector('[data-role="footer"]');
+const chartDayEl = document.querySelector('[data-role="chart-day"]');
+const olderDayEl = document.querySelector('[data-role="older-day"]');
+const newerDayEl = document.querySelector('[data-role="newer-day"]');
+
+let currentDayOffset = 0;
 
 bootstrapPopup();
 
+olderDayEl.addEventListener('click', () => {
+    currentDayOffset = Math.max(-28, currentDayOffset - 1);
+    bootstrapPopup();
+});
+
+newerDayEl.addEventListener('click', () => {
+    currentDayOffset = Math.min(0, currentDayOffset + 1);
+    bootstrapPopup();
+});
+
 async function bootstrapPopup() {
-    const response = await chrome.runtime.sendMessage({ type: 'webtime:get-popup-data' });
+    const response = await chrome.runtime.sendMessage({
+        type: 'webtime:get-popup-data',
+        dayOffset: currentDayOffset
+    });
 
     if (response?.error) {
         statusEl.textContent = response.error;
         return;
     }
 
+    currentDayOffset = response.chartDayOffset;
     renderCurrentSite(response.currentSite);
-    renderChart(response.chart);
+    renderChart(response.chart, response.chartDayLabel);
     renderFooter(response.settingsSummary);
+    olderDayEl.disabled = currentDayOffset <= -28;
+    newerDayEl.disabled = currentDayOffset >= 0;
 }
 
 function renderCurrentSite(site) {
@@ -54,10 +75,12 @@ function renderCurrentSite(site) {
     statusEl.textContent = 'Tracking the focused tab of the active window. No explicit site limit.';
 }
 
-function renderChart(chart) {
+function renderChart(chart, chartDayLabel) {
+    chartDayEl.textContent = chartDayLabel;
+
     if (!chart?.entries?.length) {
         chartEl.style.background = 'linear-gradient(180deg, #f2e7d6 0%, #eadbc4 100%)';
-        totalEl.textContent = 'No tracked usage yet today.';
+        totalEl.textContent = 'No tracked usage for this day.';
         legendEl.innerHTML = '';
         return;
     }
@@ -72,7 +95,7 @@ function renderChart(chart) {
     });
 
     chartEl.style.background = `conic-gradient(${segments.join(', ')})`;
-    totalEl.textContent = `${formatMinutes(chart.totalMinutes)} tracked today`;
+    totalEl.textContent = `${formatMinutes(chart.totalMinutes)} tracked`;
     legendEl.innerHTML = chart.entries
         .map((entry) => `
             <li class="legend__item">

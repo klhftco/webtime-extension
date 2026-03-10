@@ -10,26 +10,48 @@
     <main class="settings-shell">
         <section class="settings-hero">
             <p class="settings-hero__eyebrow">WebTime</p>
-            <h1>Blocked sites and limits</h1>
+            <h1>Blocked sites, limits, and usage</h1>
             <p>Use one hostname or site path per line for blocked sites, such as <code>youtube.com</code> or <code>youtube.com/shorts</code>. Blocked sites act like a <code>0</code>-minute daily limit. For limits, enter one rule per line in the format <code>site-key minutes</code>.</p>
         </section>
 
-        <form data-role="settings-form" class="settings-form">
-            <label class="field">
-                <span>Blocked sites</span>
-                <textarea name="blockedSites" rows="10" placeholder="youtube.com&#10;youtube.com/shorts"></textarea>
-            </label>
+        <div class="tab-row" role="tablist" aria-label="Options sections">
+            <button type="button" class="tab-row__tab is-active" data-role="tab" data-tab="settings">Settings</button>
+            <button type="button" class="tab-row__tab" data-role="tab" data-tab="weekly">Weekly usage</button>
+        </div>
 
-            <label class="field">
-                <span>Per-site daily limits</span>
-                <textarea name="siteLimits" rows="10" placeholder="youtube.com 30&#10;youtube.com/shorts 10"></textarea>
-            </label>
+        <section class="tab-panel is-active" data-role="panel" data-panel="settings">
+            <form data-role="settings-form" class="settings-form">
+                <label class="field">
+                    <span>Blocked sites</span>
+                    <textarea name="blockedSites" rows="10" placeholder="youtube.com&#10;youtube.com/shorts"></textarea>
+                </label>
 
-            <div class="form-actions">
-                <button type="submit">Save settings</button>
-                <p data-role="save-status" class="save-status"></p>
+                <label class="field">
+                    <span>Per-site daily limits</span>
+                    <textarea name="siteLimits" rows="10" placeholder="youtube.com 30&#10;youtube.com/shorts 10"></textarea>
+                </label>
+
+                <div class="form-actions">
+                    <button type="submit">Save settings</button>
+                    <p data-role="save-status" class="save-status"></p>
+                </div>
+            </form>
+        </section>
+
+        <section class="tab-panel" data-role="panel" data-panel="weekly">
+            <div class="weekly-card">
+                <p class="weekly-card__title">Last 7 days</p>
+                <p class="weekly-card__total" data-role="weekly-total">Loading...</p>
+                <div class="weekly-chart" data-role="weekly-chart"></div>
+                <div class="weekly-detail">
+                    <div class="weekly-detail__header">
+                        <p class="weekly-detail__title" data-role="weekly-detail-title">Top 30 by weekly total</p>
+                        <button type="button" class="weekly-detail__clear" data-role="clear-weekly-selection" hidden>Clear day</button>
+                    </div>
+                    <ul class="weekly-detail__list" data-role="weekly-detail-list"></ul>
+                </div>
             </div>
-        </form>
+        </section>
     </main>
 
     <script src="../js/shared.js"></script>

@@ -63,7 +63,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'webtime:get-popup-data') {
-        getPopupData()
+        getPopupData(message.dayOffset)
             .then((data) => sendResponse(data))
             .catch((error) => sendResponse({ error: error.message }));
         return true;
@@ -86,6 +86,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'webtime:save-settings') {
         saveSettings(message.payload)
             .then((settings) => sendResponse({ settings }))
+            .catch((error) => sendResponse({ error: error.message }));
+        return true;
+    }
+
+    if (message?.type === 'webtime:get-weekly-usage') {
+        getWeeklyUsage()
+            .then((weeklyUsage) => sendResponse({ weeklyUsage }))
             .catch((error) => sendResponse({ error: error.message }));
         return true;
     }
@@ -144,21 +151,25 @@ async function saveSettings(payload) {
     return settings;
 }
 
-async function getPopupData() {
+async function getPopupData(dayOffset) {
     await flushActiveSession();
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     const settings = await getSettings();
-    const usageByHostname = await getTodayUsageByHostname();
+    const currentDayUsage = await getUsageByDayOffset(0);
+    const selectedDayOffset = normalizeDayOffset(dayOffset);
+    const selectedDayUsage = await getUsageByDayOffset(selectedDayOffset);
 
     if (tab?.id) {
         await recordTransition(tab.id);
     }
 
-    const currentSite = buildCurrentSite(tab?.url, usageByHostname, settings);
+    const currentSite = buildCurrentSite(tab?.url, currentDayUsage, settings);
 
     return {
         currentSite,
-        chart: buildChartData(usageByHostname),
+        chart: buildChartData(selectedDayUsage, 15),
+        chartDayLabel: formatDayLabel(selectedDayOffset),
+        chartDayOffset: selectedDayOffset,
         settingsSummary: {
             blockedSitesCount: settings.blockedSites.length,
             limitedSitesCount: Object.keys(settings.siteLimitsByHostname).length
@@ -208,12 +219,10 @@ function buildCurrentSite(urlString, usageByHostname, settings) {
     };
 }
 
-function buildChartData(usageByHostname) {
-    const entries = Object.entries(usageByHostname)
-        .filter(([, seconds]) => seconds > 0)
-        .sort((a, b) => b[1] - a[1])
-        .map(([hostname, seconds], index) => ({
-            hostname,
+function buildChartData(usageByHostname, maxEntries) {
+    const entries = buildGroupedEntries(usageByHostname, maxEntries)
+        .map(([siteKey, seconds], index) => ({
+            hostname: siteKey,
             seconds,
             minutes: roundSecondsToMinutes(seconds),
             color: CHART_COLORS[index % CHART_COLORS.length]
@@ -225,6 +234,94 @@ function buildChartData(usageByHostname) {
         totalMinutes: roundSecondsToMinutes(totalSeconds),
         entries
     };
+}
+
+async function getWeeklyUsage() {
+    const store = await chrome.storage.local.get(STORAGE_KEYS.local);
+    const usageByDay = store.usageByDay || {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay());
+    const weeklyDayKeys = Array.from({ length: 7 }, (_value, index) => {
+        const date = new Date(sunday);
+        date.setDate(sunday.getDate() + index);
+        return getDateKeyFromDate(date);
+    });
+    const normalizedDays = weeklyDayKeys.map((dayKey) => ({
+        dayKey,
+        usage: normalizeUsageMap(usageByDay[dayKey] || {})
+    }));
+
+    const weeklyTotals = normalizedDays.reduce((totals, day) => {
+        Object.entries(day.usage).forEach(([siteKey, seconds]) => {
+            totals[siteKey] = (totals[siteKey] || 0) + seconds;
+        });
+        return totals;
+    }, {});
+
+    const rankedEntries = buildGroupedEntries(weeklyTotals, 10);
+    const legend = rankedEntries.map(([siteKey, _seconds], index) => ({
+        siteKey,
+        color: siteKey === 'Other' ? '#e8dccb' : CHART_COLORS[index % CHART_COLORS.length]
+    }));
+
+    const bars = normalizedDays.map((day) => {
+        const totalSeconds = Object.values(day.usage).reduce((sum, seconds) => sum + seconds, 0);
+        const groupedUsage = buildGroupedUsageForKeys(day.usage, rankedEntries.map(([siteKey]) => siteKey));
+        const segments = legend.map((entry) => ({
+            siteKey: entry.siteKey,
+            color: entry.color,
+            seconds: groupedUsage[entry.siteKey] || 0
+        })).filter((segment) => segment.seconds > 0);
+        const detailEntries = Object.entries(day.usage)
+            .filter(([, seconds]) => seconds > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([siteKey, seconds]) => ({
+                siteKey,
+                seconds
+            }));
+
+        return {
+            dayKey: day.dayKey,
+            label: formatWeeklyLabel(day.dayKey),
+            totalMinutes: roundSecondsToMinutes(totalSeconds),
+            totalSeconds,
+            segments,
+            detailEntries
+        };
+    });
+
+    const weekTotalSeconds = bars.reduce((sum, bar) => sum + bar.totalSeconds, 0);
+    const defaultList = Object.entries(weeklyTotals)
+        .filter(([, seconds]) => seconds > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 30)
+        .map(([siteKey, seconds]) => ({
+            siteKey,
+            totalSeconds: seconds
+        }));
+
+    return { bars, legend, weekTotalSeconds, defaultList };
+}
+
+function buildGroupedEntries(usageByHostname, maxEntries) {
+    const sortedEntries = Object.entries(usageByHostname)
+        .filter(([, seconds]) => seconds > 0)
+        .sort((a, b) => b[1] - a[1]);
+
+    if (sortedEntries.length <= maxEntries) {
+        return sortedEntries;
+    }
+
+    const head = sortedEntries.slice(0, maxEntries);
+    const otherSeconds = sortedEntries.slice(maxEntries).reduce((sum, [, seconds]) => sum + seconds, 0);
+
+    if (otherSeconds > 0) {
+        head.push(['Other', otherSeconds]);
+    }
+
+    return head;
 }
 
 async function syncActiveTabSession() {
@@ -287,17 +384,7 @@ async function addUsage(hostname, secondsToAdd) {
 }
 
 async function getTodayUsageByHostname() {
-    const store = await chrome.storage.local.get(STORAGE_KEYS.local);
-    const usageByDay = store.usageByDay || {};
-    const todayKey = getTodayKey();
-    const normalizedTodayUsage = normalizeUsageMap(usageByDay[todayKey] || {});
-
-    if (JSON.stringify(normalizedTodayUsage) !== JSON.stringify(usageByDay[todayKey] || {})) {
-        usageByDay[todayKey] = normalizedTodayUsage;
-        await chrome.storage.local.set({ usageByDay });
-    }
-
-    return normalizedTodayUsage;
+    return getUsageByDayOffset(0);
 }
 
 function normalizeUsageMap(usageMap) {
@@ -392,4 +479,57 @@ async function redirectTabToBlockedPage(tabId, payload) {
     blockedPageUrl.searchParams.set('target', payload?.targetUrl || '');
 
     await chrome.tabs.update(tabId, { url: blockedPageUrl.toString() });
+}
+
+async function getUsageByDayOffset(dayOffset) {
+    const store = await chrome.storage.local.get(STORAGE_KEYS.local);
+    const usageByDay = store.usageByDay || {};
+    const dayKey = getDateKeyFromOffset(dayOffset);
+    const normalizedUsage = normalizeUsageMap(usageByDay[dayKey] || {});
+
+    if (JSON.stringify(normalizedUsage) !== JSON.stringify(usageByDay[dayKey] || {})) {
+        usageByDay[dayKey] = normalizedUsage;
+        await chrome.storage.local.set({ usageByDay });
+    }
+
+    return normalizedUsage;
+}
+
+function normalizeDayOffset(dayOffset) {
+    const numericOffset = Number(dayOffset);
+    if (Number.isNaN(numericOffset)) {
+        return 0;
+    }
+
+    return Math.max(-28, Math.min(0, Math.trunc(numericOffset)));
+}
+
+function formatDayLabel(dayOffset) {
+    if (dayOffset === 0) {
+        return 'Today';
+    }
+
+    if (dayOffset === -1) {
+        return 'Yesterday';
+    }
+
+    return formatWeeklyLabel(getDateKeyFromOffset(dayOffset));
+}
+
+function formatWeeklyLabel(dayKey) {
+    const [year, month, day] = dayKey.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function buildGroupedUsageForKeys(usageMap, rankedKeys) {
+    const totals = {};
+    const allowedKeys = new Set(rankedKeys);
+
+    Object.entries(usageMap).forEach(([siteKey, seconds]) => {
+        const bucket = allowedKeys.has(siteKey) ? siteKey : 'Other';
+        totals[bucket] = (totals[bucket] || 0) + seconds;
+    });
+
+    return totals;
 }

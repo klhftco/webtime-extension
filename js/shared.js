@@ -145,8 +145,24 @@ function buildUrlCandidates(urlValue) {
     return candidates;
 }
 
+function getDateKeyFromDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+function getDateKeyFromOffset(dayOffset) {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + dayOffset);
+
+    return getDateKeyFromDate(date);
+}
+
 function getTodayKey() {
-    return new Date().toISOString().slice(0, 10);
+    return getDateKeyFromOffset(0);
 }
 
 function roundSecondsToMinutes(seconds) {
@@ -170,4 +186,26 @@ function formatMinutes(totalMinutes) {
     }
 
     return `${minutes}m`;
+}
+
+function formatSeconds(totalSeconds) {
+    if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
+        return '0s';
+    }
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const parts = [];
+
+    if (hours > 0) {
+        parts.push(`${hours}h`);
+    }
+
+    if (minutes > 0 || hours > 0) {
+        parts.push(`${minutes}m`);
+    }
+
+    parts.push(`${seconds}s`);
+    return parts.join(' ');
 }

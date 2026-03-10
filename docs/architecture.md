@@ -4,9 +4,9 @@
 
 - `manifest.json`: MV3 manifest defining the popup, background service worker, content script, options page, and required permissions.
 - `background` service worker: owns active-window tab tracking, site status evaluation, limit checks, blocked-list checks, and popup data assembly.
-- `popup`: shows current-site status, assigned limit if one exists, and a pie-chart breakdown of today's tracked usage by site key.
+- `popup`: shows current-site status, assigned limit if one exists, and a day-navigable pie-chart breakdown of tracked usage by site key.
 - `content` script: redirects a blocked page to an internal extension-owned blocked screen.
-- `options` page: manages blocked sites, per-site daily limits, schedules, and cooldown-protected changes.
+- `options` page: manages blocked sites, per-site daily limits, schedules, cooldown-protected changes, and a weekly stacked-bar usage view with a selectable detail list.
 
 ## v0 Tracking Model
 
@@ -49,6 +49,12 @@
   - daily insights for the current day plus up to 4 weeks prior
   - all-time usage summaries
   - a reset control that zeros all stored usage
+- Popup day navigation should affect only the visualization dataset, not the current-site status panel.
+- Popup pie-chart aggregation may group low-ranked entries into `Other` after the top 15 site keys.
+- Weekly options analytics should expose:
+  - a weekly total across the displayed 7 days
+  - a default top-30 list ranked by total weekly usage
+  - an unfiltered selected-day list sorted by usage with second-level resolution
 
 ## Likely Permissions
 

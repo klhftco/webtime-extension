@@ -119,6 +119,14 @@ async function ensureDefaults() {
         next.siteLimitsByHostname = DEFAULT_SETTINGS.siteLimitsByHostname;
     }
 
+    if (!Array.isArray(current.blockedCategories)) {
+        next.blockedCategories = DEFAULT_SETTINGS.blockedCategories;
+    }
+
+    if (!current.categoryLimitsById || typeof current.categoryLimitsById !== 'object' || Array.isArray(current.categoryLimitsById)) {
+        next.categoryLimitsById = DEFAULT_SETTINGS.categoryLimitsById;
+    }
+
     if (Object.keys(next).length > 0) {
         await chrome.storage.sync.set(next);
     }
@@ -129,11 +137,15 @@ async function getSettings() {
     const current = await chrome.storage.sync.get(STORAGE_KEYS.sync);
     const settings = {
         blockedSites: normalizeHostnames(current.blockedSites || []),
-        siteLimitsByHostname: normalizeSiteLimits(current.siteLimitsByHostname || {})
+        siteLimitsByHostname: normalizeSiteLimits(current.siteLimitsByHostname || {}),
+        blockedCategories: normalizeCategoryList(current.blockedCategories || []),
+        categoryLimitsById: normalizeCategoryLimits(current.categoryLimitsById || {})
     };
 
     if (JSON.stringify(settings.blockedSites) !== JSON.stringify(current.blockedSites || []) ||
-        JSON.stringify(settings.siteLimitsByHostname) !== JSON.stringify(current.siteLimitsByHostname || {})) {
+        JSON.stringify(settings.siteLimitsByHostname) !== JSON.stringify(current.siteLimitsByHostname || {}) ||
+        JSON.stringify(settings.blockedCategories) !== JSON.stringify(current.blockedCategories || []) ||
+        JSON.stringify(settings.categoryLimitsById) !== JSON.stringify(current.categoryLimitsById || {})) {
         await chrome.storage.sync.set(settings);
     }
 
@@ -143,8 +155,10 @@ async function getSettings() {
 async function saveSettings(payload) {
     const blockedSites = normalizeHostnames((payload?.blockedSites || '').split('\n'));
     const siteLimitsByHostname = parseSiteLimitsText(payload?.siteLimitsText || '');
+    const blockedCategories = normalizeCategoryList((payload?.blockedCategories || '').split('\n'));
+    const categoryLimitsById = parseCategoryLimitsText(payload?.categoryLimitsText || '');
 
-    const settings = { blockedSites, siteLimitsByHostname };
+    const settings = { blockedSites, siteLimitsByHostname, blockedCategories, categoryLimitsById };
     await chrome.storage.sync.set(settings);
     await refreshAllTabs();
 
@@ -158,12 +172,13 @@ async function getPopupData(dayOffset) {
     const currentDayUsage = await getUsageByDayOffset(0);
     const selectedDayOffset = normalizeDayOffset(dayOffset);
     const selectedDayUsage = await getUsageByDayOffset(selectedDayOffset);
+    const categoryMap = await getCategoryMap();
 
     if (tab?.id) {
         await recordTransition(tab.id);
     }
 
-    const currentSite = buildCurrentSite(tab?.url, currentDayUsage, settings);
+    const currentSite = buildCurrentSite(tab?.url, currentDayUsage, settings, categoryMap);
 
     return {
         currentSite,
@@ -180,10 +195,11 @@ async function getPopupData(dayOffset) {
 async function getSiteState(urlString) {
     const usageByHostname = await getTodayUsageByHostname();
     const settings = await getSettings();
-    return buildCurrentSite(urlString, usageByHostname, settings);
+    const categoryMap = await getCategoryMap();
+    return buildCurrentSite(urlString, usageByHostname, settings, categoryMap);
 }
 
-function buildCurrentSite(urlString, usageByHostname, settings) {
+function buildCurrentSite(urlString, usageByHostname, settings, categoryMap) {
     const parsed = safeParseUrl(urlString);
     if (!parsed || !isTrackableUrl(parsed)) {
         return {
@@ -202,16 +218,29 @@ function buildCurrentSite(urlString, usageByHostname, settings) {
     const todayMinutes = roundSecondsToMinutes(totalSeconds);
     const matchingBlockedKey = getMostSpecificMatch(parsed, settings.blockedSites);
     const matchingLimitKey = getMostSpecificMatch(parsed, Object.keys(settings.siteLimitsByHostname));
+    const categoryId = resolveCategoryId(parsed, categoryMap);
+    const categoryUsageSeconds = categoryId ? (buildCategoryUsage(usageByHostname, categoryMap.siteToCategory)[categoryId] || 0) : 0;
+    const categoryUsageMinutes = roundSecondsToMinutes(categoryUsageSeconds);
+    const categoryLimitMinutes = categoryId ? (settings.categoryLimitsById[categoryId] ?? null) : null;
+    const isCategoryBlocked = categoryId ? settings.blockedCategories.includes(categoryId) : false;
     const isBlocked = Boolean(matchingBlockedKey);
     const configuredLimitMinutes = matchingLimitKey ? settings.siteLimitsByHostname[matchingLimitKey] : null;
-    const effectiveLimitMinutes = resolveEffectiveLimitMinutes(parsed, settings);
-    const isOverLimit = effectiveLimitMinutes !== null && todayMinutes >= effectiveLimitMinutes;
+    const effectiveSiteLimitMinutes = resolveEffectiveLimitMinutes(parsed, settings);
+    const effectiveCategoryLimitMinutes = resolveEffectiveCategoryLimitMinutes(categoryId, settings);
+    const isSiteOverLimit = effectiveSiteLimitMinutes !== null && todayMinutes >= effectiveSiteLimitMinutes;
+    const isCategoryOverLimit = effectiveCategoryLimitMinutes !== null && categoryUsageMinutes >= effectiveCategoryLimitMinutes;
+    const isOverLimit = isSiteOverLimit || isCategoryOverLimit;
 
     return {
         siteKey,
         todayMinutes,
-        limitMinutes: effectiveLimitMinutes,
+        limitMinutes: effectiveSiteLimitMinutes ?? effectiveCategoryLimitMinutes,
         configuredLimitMinutes,
+        siteLimitMinutes: effectiveSiteLimitMinutes,
+        categoryId,
+        categoryLimitMinutes: effectiveCategoryLimitMinutes,
+        categoryUsageMinutes,
+        isCategoryBlocked,
         isTrackable: true,
         isBlocked,
         isOverLimit,
@@ -417,6 +446,24 @@ function parseSiteLimitsText(text) {
         }, {});
 }
 
+function parseCategoryLimitsText(text) {
+    return text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .reduce((limits, line) => {
+            const [rawCategory, rawMinutes] = line.split(/[,:=\s]+/, 2);
+            const categoryId = normalizeCategoryId(rawCategory || '');
+            const minutes = clampLimitMinutes(rawMinutes);
+
+            if (categoryId && minutes !== null) {
+                limits[categoryId] = minutes;
+            }
+
+            return limits;
+        }, {});
+}
+
 function getTrackingSiteKey(urlOrParsed, settings) {
     const candidates = buildUrlCandidates(urlOrParsed);
     const configuredRuleKeys = new Set([
@@ -444,6 +491,130 @@ function resolveEffectiveLimitMinutes(urlOrParsed, settings) {
 
         if (settings.blockedSites.includes(candidate)) {
             return 0;
+        }
+    }
+
+    return null;
+}
+
+function resolveEffectiveCategoryLimitMinutes(categoryId, settings) {
+    if (!categoryId) {
+        return null;
+    }
+
+    if (settings.blockedCategories.includes(categoryId)) {
+        return 0;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(settings.categoryLimitsById, categoryId)) {
+        return settings.categoryLimitsById[categoryId];
+    }
+
+    return null;
+}
+
+function buildCategoryUsage(usageByHostname, categoryMap) {
+    return Object.entries(usageByHostname).reduce((totals, [siteKey, seconds]) => {
+        const categoryId = categoryMap[siteKey];
+        if (!categoryId) {
+            return totals;
+        }
+
+        totals[categoryId] = (totals[categoryId] || 0) + seconds;
+        return totals;
+    }, {});
+}
+
+function normalizeCategoryList(values) {
+    return Array.from(
+        new Set(
+            values
+                .map((value) => normalizeCategoryId(value))
+                .filter(Boolean)
+        )
+    ).sort();
+}
+
+function normalizeCategoryLimits(limitMap) {
+    return Object.entries(limitMap || {}).reduce((normalized, [categoryId, minutes]) => {
+        const cleanCategory = normalizeCategoryId(categoryId);
+        const cleanMinutes = clampLimitMinutes(minutes);
+
+        if (!cleanCategory || cleanMinutes === null) {
+            return normalized;
+        }
+
+        normalized[cleanCategory] = cleanMinutes;
+        return normalized;
+    }, {});
+}
+
+let categoryMapPromise = null;
+
+async function getCategoryMap() {
+    if (!categoryMapPromise) {
+        categoryMapPromise = fetch(chrome.runtime.getURL('data/categories.json'))
+            .then((response) => response.json())
+            .then((categoryList) => buildCategoryMap(categoryList))
+            .catch(() => ({ siteToCategory: {}, regexRules: [] }));
+    }
+
+    return categoryMapPromise;
+}
+
+function buildCategoryMap(categoryList) {
+    const siteToCategory = {};
+    const regexRules = [];
+
+    Object.entries(categoryList || {}).forEach(([categoryId, sites]) => {
+        if (categoryId.endsWith('_regex')) {
+            const baseCategory = normalizeCategoryId(categoryId.replace(/_regex$/, ''));
+            if (!baseCategory || !Array.isArray(sites)) {
+                return;
+            }
+
+            sites.forEach((pattern) => {
+                if (typeof pattern !== 'string' || !pattern.trim()) {
+                    return;
+                }
+                regexRules.push({ categoryId: baseCategory, regex: new RegExp(pattern, 'i') });
+            });
+
+            return;
+        }
+
+        const cleanCategory = normalizeCategoryId(categoryId);
+        if (!cleanCategory || !Array.isArray(sites)) {
+            return;
+        }
+
+        sites.forEach((siteKey) => {
+            const cleanSiteKey = normalizeSiteKey(siteKey);
+            if (cleanSiteKey) {
+                siteToCategory[cleanSiteKey] = cleanCategory;
+            }
+        });
+    });
+
+    return { siteToCategory, regexRules };
+}
+
+function resolveCategoryId(urlOrParsed, categoryMap) {
+    const candidates = buildUrlCandidates(urlOrParsed);
+    for (const candidate of candidates) {
+        if (categoryMap.siteToCategory[candidate]) {
+            return categoryMap.siteToCategory[candidate];
+        }
+    }
+
+    const hostname = normalizeHostname((typeof urlOrParsed === 'string' ? safeParseUrl(urlOrParsed) : urlOrParsed)?.hostname || '');
+    if (!hostname) {
+        return null;
+    }
+
+    for (const rule of categoryMap.regexRules) {
+        if (rule.regex.test(hostname)) {
+            return rule.categoryId;
         }
     }
 

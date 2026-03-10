@@ -1,13 +1,15 @@
 'use strict';
 
 const STORAGE_KEYS = {
-    sync: ['blockedSites', 'siteLimitsByHostname'],
+    sync: ['blockedSites', 'siteLimitsByHostname', 'blockedCategories', 'categoryLimitsById'],
     local: ['usageByDay']
 };
 
 const DEFAULT_SETTINGS = {
     blockedSites: [],
-    siteLimitsByHostname: {}
+    siteLimitsByHostname: {},
+    blockedCategories: [],
+    categoryLimitsById: {}
 };
 
 const CHART_COLORS = [
@@ -17,6 +19,16 @@ const CHART_COLORS = [
     '#2f6db0',
     '#d18c2b',
     '#b4436c'
+];
+
+const CATEGORY_IDS = [
+    'adult',
+    'social',
+    'shopping',
+    'gambling',
+    'sports',
+    'news',
+    'gaming'
 ];
 
 function safeParseUrl(value) {
@@ -79,6 +91,19 @@ function clampLimitMinutes(value) {
     }
 
     return Math.min(1440, Math.max(1, Math.round(numericValue)));
+}
+
+function normalizeCategoryId(value) {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+        return '';
+    }
+
+    return CATEGORY_IDS.includes(normalized) ? normalized : '';
 }
 
 function normalizeSiteKey(value) {

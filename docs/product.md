@@ -44,7 +44,11 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 
 ## v2 Candidates
 
-- Add site-group limits.
+- Add site-group limits and blocking by category.
+- Support common categories such as adult, social, shopping, gambling, sports, news, and gaming.
+- Category limits should aggregate usage across all sites in the same category.
+- Category blocks should apply to all sites in the category.
+- Categories should be assigned automatically from an offline list bundled with the extension.
 - Add richer schedule controls.
 - Add stronger friction for settings changes beyond a simple cooldown.
 - Add a small test harness for pure helper functions.

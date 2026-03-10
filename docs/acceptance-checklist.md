@@ -45,3 +45,11 @@ Use this list before considering a change ready.
 - With no day selected, the weekly options view shows the top 30 site keys ranked by total weekly usage.
 - Selecting a day in the weekly chart shows an unfiltered list of that day's site-key usage.
 - The selected-day detail list shows usage with second-level resolution.
+
+## v2 Category Limits Expectations
+
+- The options page can enable category limits and blocks for common categories such as adult, social, shopping, gambling, sports, news, and gaming.
+- A site assigned to a category contributes its usage to that category's total.
+- If a category has a limit, all sites in that category contribute to reaching the limit.
+- If a category is blocked, all sites in that category are blocked immediately.
+- Site-level limits and category-level limits both apply; if either triggers a block, the site is blocked.

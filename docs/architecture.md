@@ -7,6 +7,7 @@
 - `popup`: shows current-site status, assigned limit if one exists, and a day-navigable pie-chart breakdown of tracked usage by site key.
 - `content` script: redirects a blocked page to an internal extension-owned blocked screen.
 - `options` page: manages blocked sites, per-site daily limits, schedules, cooldown-protected changes, and a weekly stacked-bar usage view with a selectable detail list.
+  - Category settings use an offline category map bundled in the extension.
 
 ## v0 Tracking Model
 
@@ -28,6 +29,8 @@
 - Settings store:
   - `blockedSites = [siteKey, ...]`
   - `siteLimitsByHostname[siteKey] = minutes`
+  - `blockedCategories = [categoryId, ...]`
+  - `categoryLimitsById[categoryId] = minutes`
   - blocked-window schedule definition
   - cooldown configuration or protected-change state
 
@@ -40,6 +43,12 @@
 - If no per-site limit exists and the site key is not blocked, the site is not over-limit.
 - If an effective limit exists, compare today's usage against that limit.
 - Redirect to the blocked page when the site is over its effective limit, or inside a blocked schedule window.
+- For category limits:
+  - Resolve the site key's category, if any.
+  - Compute the category's total usage as the sum of all site keys mapped to that category.
+  - If the category is blocked, treat the category effective limit as `0` minutes.
+  - If a category limit exists, compare category usage against that limit.
+  - Block if either the site-level rule or category-level rule requires blocking.
 
 ## UI Surfaces
 
@@ -71,6 +80,8 @@
 - Storing limits in minutes keeps editing simpler, while usage remains in seconds for tracking precision.
 - Historical daily insights require a clear retention rule; the product target is 4 weeks of prior day-level visibility.
 - All-time usage can be derived from historical buckets or stored separately; deriving is simpler, while a separate rollup can be cheaper to query.
+- Category limits require a taxonomy and a mapping from site keys to categories; these need to be curated or user-editable.
+- Offline categories can include regex fallbacks for hostname-only matching (e.g. adult patterns).
 
 ## When Changing Architecture
 

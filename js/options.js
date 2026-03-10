@@ -2,6 +2,8 @@
 
 const blockedSitesEl = document.querySelector('[name="blockedSites"]');
 const siteLimitsEl = document.querySelector('[name="siteLimits"]');
+const blockedCategoriesEl = document.querySelector('[name="blockedCategories"]');
+const categoryLimitsEl = document.querySelector('[name="categoryLimits"]');
 const saveStatusEl = document.querySelector('[data-role="save-status"]');
 const formEl = document.querySelector('[data-role="settings-form"]');
 const weeklyChartEl = document.querySelector('[data-role="weekly-chart"]');
@@ -24,7 +26,9 @@ formEl.addEventListener('submit', async (event) => {
         type: 'webtime:save-settings',
         payload: {
             blockedSites: blockedSitesEl.value,
-            siteLimitsText: siteLimitsEl.value
+            siteLimitsText: siteLimitsEl.value,
+            blockedCategories: blockedCategoriesEl.value,
+            categoryLimitsText: categoryLimitsEl.value
         }
     });
 
@@ -75,6 +79,11 @@ function renderSettings(settings) {
     siteLimitsEl.value = Object.entries(settings.siteLimitsByHostname)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([hostname, minutes]) => `${hostname} ${minutes}`)
+        .join('\n');
+    blockedCategoriesEl.value = settings.blockedCategories.join('\n');
+    categoryLimitsEl.value = Object.entries(settings.categoryLimitsById)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([categoryId, minutes]) => `${categoryId} ${minutes}`)
         .join('\n');
 }
 

@@ -31,6 +31,21 @@
                     <textarea name="siteLimits" rows="10" placeholder="youtube.com 30&#10;youtube.com/shorts 10"></textarea>
                 </label>
 
+                <label class="field">
+                    <span>Blocked categories</span>
+                    <textarea name="blockedCategories" rows="6" placeholder="adult&#10;social&#10;gaming"></textarea>
+                </label>
+
+                <label class="field">
+                    <span>Category limits (minutes)</span>
+                    <textarea name="categoryLimits" rows="6" placeholder="social 45&#10;shopping 20"></textarea>
+                </label>
+
+                <div class="field">
+                    <span>Automatic categories</span>
+                    <p>Categories are assigned automatically using the built-in list. Supported categories: <code>adult</code>, <code>social</code>, <code>shopping</code>, <code>gambling</code>, <code>sports</code>, <code>news</code>, <code>gaming</code>.</p>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit">Save settings</button>
                     <p data-role="save-status" class="save-status"></p>

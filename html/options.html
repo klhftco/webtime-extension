@@ -49,11 +49,13 @@
                     <p>Categories are assigned automatically using the built-in list. Supported categories: <code>adult</code>, <code>social</code>, <code>shopping</code>, <code>gambling</code>, <code>sports</code>, <code>news</code>, <code>gaming</code>.</p>
                 </div>
 
-                <label class="field">
-                    <span>PIN to save changes</span>
-                    <input type="password" name="pinAttempt" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                <div class="field" data-role="settings-pin-field">
+                    <label class="field">
+                        <span>PIN to save changes</span>
+                        <input type="password" name="pinAttempt" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                    </label>
                     <p class="pin-status" data-role="pin-status">No PIN set</p>
-                </label>
+                </div>
 
                 <div class="form-actions">
                     <button type="submit">Save settings</button>
@@ -102,7 +104,7 @@
                         <input type="checkbox" name="clearPin">
                     </label>
                     <div class="pin-grid">
-                        <label class="field">
+                        <label class="field" data-role="current-pin-field">
                             <span>Current PIN</span>
                             <input type="password" name="currentPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
                         </label>

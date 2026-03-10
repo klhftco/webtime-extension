@@ -12,6 +12,8 @@ const newPinEl = document.querySelector('[name="newPin"]');
 const confirmPinEl = document.querySelector('[name="confirmPin"]');
 const clearPinEl = document.querySelector('[name="clearPin"]');
 const pinStatusEl = document.querySelector('[data-role="pin-status"]');
+const settingsPinFieldEl = document.querySelector('[data-role="settings-pin-field"]');
+const currentPinFieldEl = document.querySelector('[data-role="current-pin-field"]');
 const saveStatusEl = document.querySelector('[data-role="save-status"]');
 const formEl = document.querySelector('[data-role="settings-form"]');
 const protectionFormEl = document.querySelector('[data-role="protection-form"]');
@@ -235,13 +237,17 @@ function renderSettings(settings) {
     slowModeEnabledEl.checked = Boolean(settings.slowModeEnabled);
     slowModeSecondsEl.value = Number.isFinite(settings.slowModeSeconds) ? settings.slowModeSeconds : 60;
     pinStatusEl.textContent = settings.hasPin ? 'PIN set' : 'No PIN set';
-    usagePinFieldEl.hidden = !settings.hasPin;
+    togglePinField(settingsPinFieldEl, settings.hasPin);
+    togglePinField(currentPinFieldEl, settings.hasPin);
+    togglePinField(usagePinFieldEl, settings.hasPin);
     usagePinStatusEl.hidden = settings.hasPin;
-    experimentalPinFieldEl.hidden = !settings.hasPin;
+    togglePinField(experimentalPinFieldEl, settings.hasPin);
     experimentalPinStatusEl.hidden = settings.hasPin;
     if (!settings.hasPin) {
         usagePinEl.value = '';
         experimentalPinEl.value = '';
+        pinAttemptEl.value = '';
+        currentPinEl.value = '';
     }
     trackingModeEl.value = settings.trackingMode || 'focused';
 }
@@ -271,6 +277,15 @@ function serializeLimitMap(limitMap) {
 
 function isClearConfirmReady() {
     return clearUsageConfirmEl.value.trim().toLowerCase() === 'permanently clear';
+}
+
+function togglePinField(element, show) {
+    if (!element) {
+        return;
+    }
+
+    element.hidden = !show;
+    element.style.display = show ? '' : 'none';
 }
 
 function renderWeeklyUsage(weeklyUsage) {

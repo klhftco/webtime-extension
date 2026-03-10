@@ -210,7 +210,11 @@ async function saveSettings(payload) {
         await assertSlowModeCooldown(slowModeSeconds);
     }
 
-    if (newPin || newPinConfirm) {
+    if (payload?.clearPin) {
+        if (newPin || newPinConfirm) {
+            throw new Error('Clear PIN cannot be combined with a new PIN.');
+        }
+    } else if (newPin || newPinConfirm) {
         if (!isValidPin(newPin) || !isValidPin(newPinConfirm)) {
             throw new Error('New PIN must be 4 digits.');
         }
@@ -230,7 +234,10 @@ async function saveSettings(payload) {
     let settingsPinHash = current.settingsPinHash || '';
     let settingsPinSalt = current.settingsPinSalt || '';
 
-    if (newPin) {
+    if (payload?.clearPin) {
+        settingsPinSalt = '';
+        settingsPinHash = '';
+    } else if (newPin) {
         settingsPinSalt = generateSalt();
         settingsPinHash = await hashPin(newPin, settingsPinSalt);
     }

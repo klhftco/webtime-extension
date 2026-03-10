@@ -7,8 +7,10 @@ const categoryLimitsEl = document.querySelector('[name="categoryLimits"]');
 const slowModeEnabledEl = document.querySelector('[name="slowModeEnabled"]');
 const slowModeSecondsEl = document.querySelector('[name="slowModeSeconds"]');
 const pinAttemptEl = document.querySelector('[name="pinAttempt"]');
+const currentPinEl = document.querySelector('[name="currentPin"]');
 const newPinEl = document.querySelector('[name="newPin"]');
 const confirmPinEl = document.querySelector('[name="confirmPin"]');
+const clearPinEl = document.querySelector('[name="clearPin"]');
 const pinStatusEl = document.querySelector('[data-role="pin-status"]');
 const saveStatusEl = document.querySelector('[data-role="save-status"]');
 const formEl = document.querySelector('[data-role="settings-form"]');
@@ -63,6 +65,8 @@ protectionFormEl.addEventListener('submit', async (event) => {
             categoryLimitsText: currentSettings ? serializeLimitMap(currentSettings.categoryLimitsById) : categoryLimitsEl.value,
             slowModeEnabled: slowModeEnabledEl.checked,
             slowModeSeconds: slowModeSecondsEl.value,
+            pinAttempt: currentPinEl.value,
+            clearPin: clearPinEl.checked,
             newPin: newPinEl.value,
             newPinConfirm: confirmPinEl.value
         })
@@ -76,6 +80,8 @@ protectionFormEl.addEventListener('submit', async (event) => {
     renderSettings(response.settings);
     protectionStatusEl.textContent = 'Saved.';
     pinAttemptEl.value = '';
+    currentPinEl.value = '';
+    clearPinEl.checked = false;
     newPinEl.value = '';
     confirmPinEl.value = '';
 });
@@ -139,7 +145,8 @@ function buildSettingsPayload(overrides) {
         categoryLimitsText: overrides.categoryLimitsText ?? categoryLimitsEl.value,
         slowModeEnabled: overrides.slowModeEnabled ?? slowModeEnabledEl.checked,
         slowModeSeconds: overrides.slowModeSeconds ?? slowModeSecondsEl.value,
-        pinAttempt: pinAttemptEl.value,
+        pinAttempt: overrides.pinAttempt ?? pinAttemptEl.value,
+        clearPin: overrides.clearPin ?? clearPinEl.checked,
         newPin: overrides.newPin ?? '',
         newPinConfirm: overrides.newPinConfirm ?? ''
     };

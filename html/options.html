@@ -95,7 +95,15 @@
                 <div class="field field--group">
                     <span>Reset PIN</span>
                     <p>Enter a new 4-digit PIN to replace the existing one.</p>
+                    <label class="field field--row">
+                        <span class="field__label">Clear existing PIN</span>
+                        <input type="checkbox" name="clearPin">
+                    </label>
                     <div class="pin-grid">
+                        <label class="field">
+                            <span>Current PIN</span>
+                            <input type="password" name="currentPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
                         <label class="field">
                             <span>New PIN</span>
                             <input type="password" name="newPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">

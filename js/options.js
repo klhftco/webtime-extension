@@ -4,8 +4,16 @@ const blockedSitesEl = document.querySelector('[name="blockedSites"]');
 const siteLimitsEl = document.querySelector('[name="siteLimits"]');
 const blockedCategoriesEl = document.querySelector('[name="blockedCategories"]');
 const categoryLimitsEl = document.querySelector('[name="categoryLimits"]');
+const slowModeEnabledEl = document.querySelector('[name="slowModeEnabled"]');
+const slowModeSecondsEl = document.querySelector('[name="slowModeSeconds"]');
+const pinAttemptEl = document.querySelector('[name="pinAttempt"]');
+const newPinEl = document.querySelector('[name="newPin"]');
+const confirmPinEl = document.querySelector('[name="confirmPin"]');
+const pinStatusEl = document.querySelector('[data-role="pin-status"]');
 const saveStatusEl = document.querySelector('[data-role="save-status"]');
 const formEl = document.querySelector('[data-role="settings-form"]');
+const protectionFormEl = document.querySelector('[data-role="protection-form"]');
+const protectionStatusEl = document.querySelector('[data-role="protection-status"]');
 const weeklyChartEl = document.querySelector('[data-role="weekly-chart"]');
 const weeklyTotalEl = document.querySelector('[data-role="weekly-total"]');
 const weeklyDetailTitleEl = document.querySelector('[data-role="weekly-detail-title"]');
@@ -16,6 +24,7 @@ const panelEls = Array.from(document.querySelectorAll('[data-role="panel"]'));
 
 let weeklyUsageState = null;
 let selectedDayKey = null;
+let currentSettings = null;
 
 bootstrapOptions();
 
@@ -24,12 +33,12 @@ formEl.addEventListener('submit', async (event) => {
 
     const response = await chrome.runtime.sendMessage({
         type: 'webtime:save-settings',
-        payload: {
+        payload: buildSettingsPayload({
             blockedSites: blockedSitesEl.value,
             siteLimitsText: siteLimitsEl.value,
             blockedCategories: blockedCategoriesEl.value,
             categoryLimitsText: categoryLimitsEl.value
-        }
+        })
     });
 
     if (response?.error) {
@@ -39,6 +48,36 @@ formEl.addEventListener('submit', async (event) => {
 
     renderSettings(response.settings);
     saveStatusEl.textContent = 'Saved.';
+    pinAttemptEl.value = '';
+});
+
+protectionFormEl.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const response = await chrome.runtime.sendMessage({
+        type: 'webtime:save-settings',
+        payload: buildSettingsPayload({
+            blockedSites: currentSettings ? currentSettings.blockedSites.join('\n') : blockedSitesEl.value,
+            siteLimitsText: currentSettings ? serializeLimitMap(currentSettings.siteLimitsByHostname) : siteLimitsEl.value,
+            blockedCategories: currentSettings ? currentSettings.blockedCategories.join('\n') : blockedCategoriesEl.value,
+            categoryLimitsText: currentSettings ? serializeLimitMap(currentSettings.categoryLimitsById) : categoryLimitsEl.value,
+            slowModeEnabled: slowModeEnabledEl.checked,
+            slowModeSeconds: slowModeSecondsEl.value,
+            newPin: newPinEl.value,
+            newPinConfirm: confirmPinEl.value
+        })
+    });
+
+    if (response?.error) {
+        protectionStatusEl.textContent = response.error;
+        return;
+    }
+
+    renderSettings(response.settings);
+    protectionStatusEl.textContent = 'Saved.';
+    pinAttemptEl.value = '';
+    newPinEl.value = '';
+    confirmPinEl.value = '';
 });
 
 tabEls.forEach((tabEl) => {
@@ -58,7 +97,8 @@ clearWeeklySelectionEl.addEventListener('click', () => {
 async function bootstrapOptions() {
     const [settingsResponse, weeklyResponse] = await Promise.all([
         chrome.runtime.sendMessage({ type: 'webtime:get-settings' }),
-        chrome.runtime.sendMessage({ type: 'webtime:get-weekly-usage' })
+        chrome.runtime.sendMessage({ type: 'webtime:get-weekly-usage' }),
+        chrome.runtime.sendMessage({ type: 'webtime:settings-opened' })
     ]);
 
     if (settingsResponse?.error) {
@@ -75,6 +115,7 @@ async function bootstrapOptions() {
 }
 
 function renderSettings(settings) {
+    currentSettings = settings;
     blockedSitesEl.value = settings.blockedSites.join('\n');
     siteLimitsEl.value = Object.entries(settings.siteLimitsByHostname)
         .sort(([a], [b]) => a.localeCompare(b))
@@ -84,6 +125,30 @@ function renderSettings(settings) {
     categoryLimitsEl.value = Object.entries(settings.categoryLimitsById)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([categoryId, minutes]) => `${categoryId} ${minutes}`)
+        .join('\n');
+    slowModeEnabledEl.checked = Boolean(settings.slowModeEnabled);
+    slowModeSecondsEl.value = Number.isFinite(settings.slowModeSeconds) ? settings.slowModeSeconds : 60;
+    pinStatusEl.textContent = settings.hasPin ? 'PIN set' : 'No PIN set';
+}
+
+function buildSettingsPayload(overrides) {
+    return {
+        blockedSites: overrides.blockedSites ?? blockedSitesEl.value,
+        siteLimitsText: overrides.siteLimitsText ?? siteLimitsEl.value,
+        blockedCategories: overrides.blockedCategories ?? blockedCategoriesEl.value,
+        categoryLimitsText: overrides.categoryLimitsText ?? categoryLimitsEl.value,
+        slowModeEnabled: overrides.slowModeEnabled ?? slowModeEnabledEl.checked,
+        slowModeSeconds: overrides.slowModeSeconds ?? slowModeSecondsEl.value,
+        pinAttempt: pinAttemptEl.value,
+        newPin: overrides.newPin ?? '',
+        newPinConfirm: overrides.newPinConfirm ?? ''
+    };
+}
+
+function serializeLimitMap(limitMap) {
+    return Object.entries(limitMap || {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, minutes]) => `${key} ${minutes}`)
         .join('\n');
 }
 

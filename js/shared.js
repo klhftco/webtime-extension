@@ -1,15 +1,28 @@
 'use strict';
 
 const STORAGE_KEYS = {
-    sync: ['blockedSites', 'siteLimitsByHostname', 'blockedCategories', 'categoryLimitsById'],
-    local: ['usageByDay']
+    sync: [
+        'blockedSites',
+        'siteLimitsByHostname',
+        'blockedCategories',
+        'categoryLimitsById',
+        'settingsPinHash',
+        'settingsPinSalt',
+        'slowModeEnabled',
+        'slowModeSeconds'
+    ],
+    local: ['usageByDay', 'settingsOpenedAt']
 };
 
 const DEFAULT_SETTINGS = {
     blockedSites: [],
     siteLimitsByHostname: {},
     blockedCategories: [],
-    categoryLimitsById: {}
+    categoryLimitsById: {},
+    settingsPinHash: '',
+    settingsPinSalt: '',
+    slowModeEnabled: false,
+    slowModeSeconds: 60
 };
 
 const CHART_COLORS = [

@@ -97,6 +97,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message?.type === 'webtime:settings-opened') {
+        recordSettingsOpened()
+            .then(() => sendResponse({ ok: true }))
+            .catch((error) => sendResponse({ error: error.message }));
+        return true;
+    }
+
     if (message?.type === 'webtime:redirect-to-blocked-page') {
         redirectTabToBlockedPage(sender?.tab?.id, message.payload)
             .then(() => sendResponse({ ok: true }))
@@ -127,6 +134,22 @@ async function ensureDefaults() {
         next.categoryLimitsById = DEFAULT_SETTINGS.categoryLimitsById;
     }
 
+    if (typeof current.settingsPinHash !== 'string') {
+        next.settingsPinHash = DEFAULT_SETTINGS.settingsPinHash;
+    }
+
+    if (typeof current.settingsPinSalt !== 'string') {
+        next.settingsPinSalt = DEFAULT_SETTINGS.settingsPinSalt;
+    }
+
+    if (typeof current.slowModeEnabled !== 'boolean') {
+        next.slowModeEnabled = DEFAULT_SETTINGS.slowModeEnabled;
+    }
+
+    if (!Number.isFinite(current.slowModeSeconds)) {
+        next.slowModeSeconds = DEFAULT_SETTINGS.slowModeSeconds;
+    }
+
     if (Object.keys(next).length > 0) {
         await chrome.storage.sync.set(next);
     }
@@ -139,30 +162,101 @@ async function getSettings() {
         blockedSites: normalizeHostnames(current.blockedSites || []),
         siteLimitsByHostname: normalizeSiteLimits(current.siteLimitsByHostname || {}),
         blockedCategories: normalizeCategoryList(current.blockedCategories || []),
-        categoryLimitsById: normalizeCategoryLimits(current.categoryLimitsById || {})
+        categoryLimitsById: normalizeCategoryLimits(current.categoryLimitsById || {}),
+        slowModeEnabled: Boolean(current.slowModeEnabled),
+        slowModeSeconds: normalizeSlowModeSeconds(current.slowModeSeconds),
+        hasPin: Boolean(current.settingsPinHash)
     };
 
     if (JSON.stringify(settings.blockedSites) !== JSON.stringify(current.blockedSites || []) ||
         JSON.stringify(settings.siteLimitsByHostname) !== JSON.stringify(current.siteLimitsByHostname || {}) ||
         JSON.stringify(settings.blockedCategories) !== JSON.stringify(current.blockedCategories || []) ||
-        JSON.stringify(settings.categoryLimitsById) !== JSON.stringify(current.categoryLimitsById || {})) {
-        await chrome.storage.sync.set(settings);
+        JSON.stringify(settings.categoryLimitsById) !== JSON.stringify(current.categoryLimitsById || {}) ||
+        settings.slowModeEnabled !== Boolean(current.slowModeEnabled) ||
+        settings.slowModeSeconds !== normalizeSlowModeSeconds(current.slowModeSeconds)) {
+        await chrome.storage.sync.set({
+            blockedSites: settings.blockedSites,
+            siteLimitsByHostname: settings.siteLimitsByHostname,
+            blockedCategories: settings.blockedCategories,
+            categoryLimitsById: settings.categoryLimitsById,
+            slowModeEnabled: settings.slowModeEnabled,
+            slowModeSeconds: settings.slowModeSeconds
+        });
     }
 
     return settings;
 }
 
 async function saveSettings(payload) {
+    await ensureDefaults();
+    const current = await chrome.storage.sync.get(STORAGE_KEYS.sync);
+    const hasPin = Boolean(current.settingsPinHash);
+    const slowModeEnabled = Boolean(current.slowModeEnabled);
+    const slowModeSeconds = normalizeSlowModeSeconds(current.slowModeSeconds);
+    const pinAttempt = typeof payload?.pinAttempt === 'string' ? payload.pinAttempt.trim() : '';
+    const newPin = typeof payload?.newPin === 'string' ? payload.newPin.trim() : '';
+    const newPinConfirm = typeof payload?.newPinConfirm === 'string' ? payload.newPinConfirm.trim() : '';
+
+    if (hasPin) {
+        if (!isValidPin(pinAttempt)) {
+            throw new Error('Enter the 4-digit PIN to change settings.');
+        }
+
+        const expected = await hashPin(pinAttempt, current.settingsPinSalt || '');
+        if (expected !== current.settingsPinHash) {
+            throw new Error('PIN did not match.');
+        }
+    } else if (slowModeEnabled) {
+        await assertSlowModeCooldown(slowModeSeconds);
+    }
+
+    if (newPin || newPinConfirm) {
+        if (!isValidPin(newPin) || !isValidPin(newPinConfirm)) {
+            throw new Error('New PIN must be 4 digits.');
+        }
+
+        if (newPin !== newPinConfirm) {
+            throw new Error('New PIN confirmation did not match.');
+        }
+    }
+
     const blockedSites = normalizeHostnames((payload?.blockedSites || '').split('\n'));
     const siteLimitsByHostname = parseSiteLimitsText(payload?.siteLimitsText || '');
     const blockedCategories = normalizeCategoryList((payload?.blockedCategories || '').split('\n'));
     const categoryLimitsById = parseCategoryLimitsText(payload?.categoryLimitsText || '');
+    const nextSlowModeEnabled = Boolean(payload?.slowModeEnabled);
+    const nextSlowModeSeconds = normalizeSlowModeSeconds(payload?.slowModeSeconds);
 
-    const settings = { blockedSites, siteLimitsByHostname, blockedCategories, categoryLimitsById };
+    let settingsPinHash = current.settingsPinHash || '';
+    let settingsPinSalt = current.settingsPinSalt || '';
+
+    if (newPin) {
+        settingsPinSalt = generateSalt();
+        settingsPinHash = await hashPin(newPin, settingsPinSalt);
+    }
+
+    const settings = {
+        blockedSites,
+        siteLimitsByHostname,
+        blockedCategories,
+        categoryLimitsById,
+        settingsPinHash,
+        settingsPinSalt,
+        slowModeEnabled: nextSlowModeEnabled,
+        slowModeSeconds: nextSlowModeSeconds
+    };
     await chrome.storage.sync.set(settings);
     await refreshAllTabs();
 
-    return settings;
+    return {
+        blockedSites,
+        siteLimitsByHostname,
+        blockedCategories,
+        categoryLimitsById,
+        slowModeEnabled: nextSlowModeEnabled,
+        slowModeSeconds: nextSlowModeSeconds,
+        hasPin: Boolean(settingsPinHash)
+    };
 }
 
 async function getPopupData(dayOffset) {
@@ -650,6 +744,55 @@ async function redirectTabToBlockedPage(tabId, payload) {
     blockedPageUrl.searchParams.set('target', payload?.targetUrl || '');
 
     await chrome.tabs.update(tabId, { url: blockedPageUrl.toString() });
+}
+
+async function recordSettingsOpened() {
+    await chrome.storage.local.set({ settingsOpenedAt: Date.now() });
+}
+
+async function assertSlowModeCooldown(slowModeSeconds) {
+    const store = await chrome.storage.local.get(STORAGE_KEYS.local);
+    const openedAt = Number(store.settingsOpenedAt);
+    if (!Number.isFinite(openedAt)) {
+        throw new Error('Settings cooldown active. Reopen settings and wait out the timer.');
+    }
+
+    const elapsedMs = Date.now() - openedAt;
+    const requiredMs = Math.max(1, slowModeSeconds) * 1000;
+    if (elapsedMs < requiredMs) {
+        const remainingSeconds = Math.ceil((requiredMs - elapsedMs) / 1000);
+        throw new Error(`Settings cooldown active. Wait ${remainingSeconds}s.`);
+    }
+}
+
+function isValidPin(value) {
+    return typeof value === 'string' && /^\d{4}$/.test(value);
+}
+
+function normalizeSlowModeSeconds(value) {
+    if (value === '' || value === null || typeof value === 'undefined') {
+        return DEFAULT_SETTINGS.slowModeSeconds;
+    }
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return DEFAULT_SETTINGS.slowModeSeconds;
+    }
+
+    return Math.min(3600, Math.max(0, Math.round(numericValue)));
+}
+
+function generateSalt() {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashPin(pin, salt) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`${salt}:${pin}`);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 async function getUsageByDayOffset(dayOffset) {

@@ -17,6 +17,7 @@
         <div class="tab-row" role="tablist" aria-label="Options sections">
             <button type="button" class="tab-row__tab is-active" data-role="tab" data-tab="settings">Settings</button>
             <button type="button" class="tab-row__tab" data-role="tab" data-tab="weekly">Weekly usage</button>
+            <button type="button" class="tab-row__tab" data-role="tab" data-tab="protection">Protection</button>
         </div>
 
         <section class="tab-panel is-active" data-role="panel" data-panel="settings">
@@ -46,6 +47,12 @@
                     <p>Categories are assigned automatically using the built-in list. Supported categories: <code>adult</code>, <code>social</code>, <code>shopping</code>, <code>gambling</code>, <code>sports</code>, <code>news</code>, <code>gaming</code>.</p>
                 </div>
 
+                <label class="field">
+                    <span>PIN to save changes</span>
+                    <input type="password" name="pinAttempt" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                    <p class="pin-status" data-role="pin-status">No PIN set</p>
+                </label>
+
                 <div class="form-actions">
                     <button type="submit">Save settings</button>
                     <p data-role="save-status" class="save-status"></p>
@@ -66,6 +73,45 @@
                     <ul class="weekly-detail__list" data-role="weekly-detail-list"></ul>
                 </div>
             </div>
+        </section>
+
+        <section class="tab-panel" data-role="panel" data-panel="protection">
+            <form data-role="protection-form" class="settings-form">
+                <div class="field field--group">
+                    <span>Settings protection</span>
+                    <p>Set a 4-digit PIN to protect settings changes. If no PIN is set, you can enable a cooldown before changes are allowed. Enter the PIN in the Settings tab when saving protection changes.</p>
+
+                    <label class="field field--row">
+                        <span class="field__label">Enable cooldown when no PIN</span>
+                        <input type="checkbox" name="slowModeEnabled">
+                    </label>
+
+                    <label class="field">
+                        <span>Cooldown seconds</span>
+                        <input type="number" name="slowModeSeconds" min="0" max="3600" step="1" placeholder="60">
+                    </label>
+                </div>
+
+                <div class="field field--group">
+                    <span>Reset PIN</span>
+                    <p>Enter a new 4-digit PIN to replace the existing one.</p>
+                    <div class="pin-grid">
+                        <label class="field">
+                            <span>New PIN</span>
+                            <input type="password" name="newPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                        <label class="field">
+                            <span>Confirm new PIN</span>
+                            <input type="password" name="confirmPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit">Save protection</button>
+                    <p data-role="protection-status" class="save-status"></p>
+                </div>
+            </form>
         </section>
     </main>
 

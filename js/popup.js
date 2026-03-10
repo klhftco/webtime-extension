@@ -13,8 +13,10 @@ const olderDayEl = document.querySelector('[data-role="older-day"]');
 const newerDayEl = document.querySelector('[data-role="newer-day"]');
 
 let currentDayOffset = 0;
+let refreshTimer = null;
 
 bootstrapPopup();
+startLiveRefresh();
 
 olderDayEl.addEventListener('click', () => {
     currentDayOffset = Math.max(-28, currentDayOffset - 1);
@@ -38,14 +40,14 @@ async function bootstrapPopup() {
     }
 
     currentDayOffset = response.chartDayOffset;
-    renderCurrentSite(response.currentSite);
+    renderCurrentSite(response.currentSite, response.trackingMode);
     renderChart(response.chart, response.chartDayLabel);
     renderFooter(response.settingsSummary);
     olderDayEl.disabled = currentDayOffset <= -28;
     newerDayEl.disabled = currentDayOffset >= 0;
 }
 
-function renderCurrentSite(site) {
+function renderCurrentSite(site, trackingMode) {
     if (!site?.isTrackable) {
         siteEl.textContent = 'Unavailable';
         usageEl.textContent = '--';
@@ -55,7 +57,7 @@ function renderCurrentSite(site) {
     }
 
     siteEl.textContent = site.siteKey;
-    usageEl.textContent = formatMinutes(site.todayMinutes);
+    usageEl.textContent = formatSeconds(site.todaySeconds);
     limitEl.textContent = site.limitMinutes === null ? 'None' : `${site.limitMinutes}m`;
 
     if (site.shouldOverlayBlock) {
@@ -68,11 +70,11 @@ function renderCurrentSite(site) {
     if (site.limitMinutes !== null) {
         statusEl.textContent = site.isBlocked
             ? 'Blocked list entry detected. This site will block immediately.'
-            : 'Tracking the focused tab of the active window.';
+            : buildTrackingStatus(trackingMode);
         return;
     }
 
-    statusEl.textContent = 'Tracking the focused tab of the active window. No explicit site limit.';
+    statusEl.textContent = `${buildTrackingStatus(trackingMode)} No explicit site limit.`;
 }
 
 function renderChart(chart, chartDayLabel) {
@@ -109,4 +111,38 @@ function renderChart(chart, chartDayLabel) {
 
 function renderFooter(summary) {
     footerEl.textContent = `${summary.limitedSitesCount} limited sites, ${summary.blockedSitesCount} blocked sites`;
+}
+
+function startLiveRefresh() {
+    if (refreshTimer) {
+        clearInterval(refreshTimer);
+    }
+
+    refreshTimer = setInterval(async () => {
+        const response = await chrome.runtime.sendMessage({
+            type: 'webtime:get-popup-data',
+            dayOffset: currentDayOffset
+        });
+
+        if (response?.error) {
+            statusEl.textContent = response.error;
+            return;
+        }
+
+        currentDayOffset = response.chartDayOffset;
+        renderCurrentSite(response.currentSite, response.trackingMode);
+        olderDayEl.disabled = currentDayOffset <= -28;
+        newerDayEl.disabled = currentDayOffset >= 0;
+    }, 1000);
+
+    window.addEventListener('unload', () => {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+    });
+}
+
+function buildTrackingStatus(trackingMode) {
+    return trackingMode === 'visible-windows'
+        ? 'Tracking the active tab in each visible window.'
+        : 'Tracking the focused tab of the active window.';
 }

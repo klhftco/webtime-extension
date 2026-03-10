@@ -26,6 +26,7 @@ body {
 button,
 textarea,
 input,
+select,
 code {
     font: inherit;
 }
@@ -49,6 +50,14 @@ textarea {
 }
 
 input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.65rem 0.9rem;
+    background: #fffaf4;
+}
+
+select {
     width: 100%;
     border: 1px solid var(--border);
     border-radius: 999px;

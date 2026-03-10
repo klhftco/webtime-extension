@@ -2,51 +2,42 @@
 
 importScripts('shared.js');
 
-let activeSession = null;
+const activeSessions = new Map();
 
 chrome.runtime.onInstalled.addListener(async () => {
     await ensureDefaults();
-    await syncActiveTabSession();
+    await syncActiveSessions();
     await refreshAllTabs();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
     await ensureDefaults();
-    await syncActiveTabSession();
+    await syncActiveSessions();
     await refreshAllTabs();
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-    await recordTransition(tabId);
+    await syncActiveSessions(tabId);
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
     if (windowId === chrome.windows.WINDOW_ID_NONE) {
-        await flushActiveSession();
+        await flushAllSessions(false);
         return;
     }
 
-    const [tab] = await chrome.tabs.query({ active: true, windowId });
-    if (tab?.id) {
-        await recordTransition(tab.id);
-    }
+    await syncActiveSessions();
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.active && tab.windowId >= 0 && tab.url) {
-        const focusedWindow = await chrome.windows.getLastFocused().catch(() => null);
-        if (focusedWindow && focusedWindow.id === tab.windowId) {
-            await recordTransition(tabId);
-        }
-
+        await syncActiveSessions(tabId);
         await pushStateToTab(tabId, tab.url);
     }
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-    if (activeSession?.tabId === tabId) {
-        await flushActiveSession();
-    }
+    await flushSessionByTabId(tabId);
 });
 
 chrome.alarms.create('heartbeat', { periodInMinutes: 1 });
@@ -56,8 +47,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         return;
     }
 
-    await flushActiveSession();
-    await syncActiveTabSession();
+    await flushAllSessions(true);
+    await syncActiveSessions();
     await refreshAllTabs();
 });
 
@@ -164,6 +155,10 @@ async function ensureDefaults() {
         next.slowModeSeconds = DEFAULT_SETTINGS.slowModeSeconds;
     }
 
+    if (typeof current.trackingMode !== 'string') {
+        next.trackingMode = DEFAULT_SETTINGS.trackingMode;
+    }
+
     if (Object.keys(next).length > 0) {
         await chrome.storage.sync.set(next);
     }
@@ -179,6 +174,7 @@ async function getSettings() {
         categoryLimitsById: normalizeCategoryLimits(current.categoryLimitsById || {}),
         slowModeEnabled: Boolean(current.slowModeEnabled),
         slowModeSeconds: normalizeSlowModeSeconds(current.slowModeSeconds),
+        trackingMode: normalizeTrackingMode(current.trackingMode),
         hasPin: Boolean(current.settingsPinHash)
     };
 
@@ -187,14 +183,16 @@ async function getSettings() {
         JSON.stringify(settings.blockedCategories) !== JSON.stringify(current.blockedCategories || []) ||
         JSON.stringify(settings.categoryLimitsById) !== JSON.stringify(current.categoryLimitsById || {}) ||
         settings.slowModeEnabled !== Boolean(current.slowModeEnabled) ||
-        settings.slowModeSeconds !== normalizeSlowModeSeconds(current.slowModeSeconds)) {
+        settings.slowModeSeconds !== normalizeSlowModeSeconds(current.slowModeSeconds) ||
+        settings.trackingMode !== normalizeTrackingMode(current.trackingMode)) {
         await chrome.storage.sync.set({
             blockedSites: settings.blockedSites,
             siteLimitsByHostname: settings.siteLimitsByHostname,
             blockedCategories: settings.blockedCategories,
             categoryLimitsById: settings.categoryLimitsById,
             slowModeEnabled: settings.slowModeEnabled,
-            slowModeSeconds: settings.slowModeSeconds
+            slowModeSeconds: settings.slowModeSeconds,
+            trackingMode: settings.trackingMode
         });
     }
 
@@ -247,7 +245,8 @@ async function saveSettings(payload) {
         settingsPinHash,
         settingsPinSalt,
         slowModeEnabled: nextSlowModeEnabled,
-        slowModeSeconds: nextSlowModeSeconds
+        slowModeSeconds: nextSlowModeSeconds,
+        trackingMode: normalizeTrackingMode(payload?.trackingMode ?? current.trackingMode)
     };
     await chrome.storage.sync.set(settings);
     await refreshAllTabs();
@@ -259,12 +258,13 @@ async function saveSettings(payload) {
         categoryLimitsById,
         slowModeEnabled: nextSlowModeEnabled,
         slowModeSeconds: nextSlowModeSeconds,
+        trackingMode: settings.trackingMode,
         hasPin: Boolean(settingsPinHash)
     };
 }
 
 async function getPopupData(dayOffset) {
-    await flushActiveSession();
+    await flushAllSessions(true);
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     const settings = await getSettings();
     const currentDayUsage = await getUsageByDayOffset(0);
@@ -272,9 +272,7 @@ async function getPopupData(dayOffset) {
     const selectedDayUsage = await getUsageByDayOffset(selectedDayOffset);
     const categoryMap = await getCategoryMap();
 
-    if (tab?.id) {
-        await recordTransition(tab.id);
-    }
+    await syncActiveSessions();
 
     const currentSite = buildCurrentSite(tab?.url, currentDayUsage, settings, categoryMap);
 
@@ -283,6 +281,7 @@ async function getPopupData(dayOffset) {
         chart: buildChartData(selectedDayUsage, 15),
         chartDayLabel: formatDayLabel(selectedDayOffset),
         chartDayOffset: selectedDayOffset,
+        trackingMode: settings.trackingMode,
         settingsSummary: {
             blockedSitesCount: settings.blockedSites.length,
             limitedSitesCount: Object.keys(settings.siteLimitsByHostname).length
@@ -331,6 +330,7 @@ function buildCurrentSite(urlString, usageByHostname, settings, categoryMap) {
 
     return {
         siteKey,
+        todaySeconds: totalSeconds,
         todayMinutes,
         limitMinutes: effectiveSiteLimitMinutes ?? effectiveCategoryLimitMinutes,
         configuredLimitMinutes,
@@ -451,50 +451,104 @@ function buildGroupedEntries(usageByHostname, maxEntries) {
     return head;
 }
 
-async function syncActiveTabSession() {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (tab?.id) {
-        await recordTransition(tab.id);
-    }
-}
-
-async function recordTransition(tabId) {
-    await flushActiveSession();
-
-    const tab = await chrome.tabs.get(tabId).catch(() => null);
-    const parsed = safeParseUrl(tab?.url);
-
-    if (!parsed || !isTrackableUrl(parsed)) {
-        activeSession = null;
-        return;
-    }
-
+async function syncActiveSessions() {
     const settings = await getSettings();
-    activeSession = {
-        tabId,
-        siteKey: getTrackingSiteKey(parsed, settings),
-        startedAt: Date.now()
-    };
-
-    await pushStateToTab(tabId, tab.url);
-}
-
-async function flushActiveSession() {
-    if (!activeSession) {
+    if (settings.trackingMode === 'visible-windows') {
+        await syncVisibleWindowSessions(settings);
         return;
     }
 
-    const elapsedSeconds = Math.max(0, Math.round((Date.now() - activeSession.startedAt) / 1000));
-    if (elapsedSeconds > 0) {
-        await addUsage(activeSession.siteKey, elapsedSeconds);
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const targetWindowId = tab?.windowId;
+    await flushSessionsExcept(targetWindowId);
+    await syncWindowSession(targetWindowId, tab, settings);
+}
+
+async function syncVisibleWindowSessions(settings) {
+    const windows = await chrome.windows.getAll({ populate: true, windowTypes: ['normal'] });
+    const visibleWindows = windows.filter((window) => window.state !== 'minimized');
+    const visibleWindowIds = new Set(visibleWindows.map((window) => window.id));
+
+    await flushSessionsExcept(visibleWindowIds);
+
+    for (const window of visibleWindows) {
+        const activeTab = (window.tabs || []).find((tab) => tab.active);
+        await syncWindowSession(window.id, activeTab, settings);
+    }
+}
+
+async function syncWindowSession(windowId, tab, settings) {
+    if (!Number.isInteger(windowId)) {
+        return;
     }
 
-    const previousTabId = activeSession.tabId;
-    activeSession = null;
+    const existing = activeSessions.get(windowId);
+    const parsed = safeParseUrl(tab?.url);
+    if (!tab?.id || !parsed || !isTrackableUrl(parsed)) {
+        await flushSession(windowId, false);
+        return;
+    }
 
-    const tab = await chrome.tabs.get(previousTabId).catch(() => null);
-    if (tab?.url) {
-        await pushStateToTab(previousTabId, tab.url);
+    const siteKey = getTrackingSiteKey(parsed, settings);
+    if (existing && existing.tabId === tab.id && existing.siteKey === siteKey) {
+        return;
+    }
+
+    await flushSession(windowId, false);
+    activeSessions.set(windowId, {
+        tabId: tab.id,
+        siteKey,
+        startedAt: Date.now()
+    });
+
+    await pushStateToTab(tab.id, tab.url);
+}
+
+async function flushAllSessions(keepActive) {
+    const windowIds = Array.from(activeSessions.keys());
+    for (const windowId of windowIds) {
+        await flushSession(windowId, keepActive);
+    }
+}
+
+async function flushSessionsExcept(allowedWindowIdOrSet) {
+    const allowedSet = allowedWindowIdOrSet instanceof Set
+        ? allowedWindowIdOrSet
+        : new Set(Number.isInteger(allowedWindowIdOrSet) ? [allowedWindowIdOrSet] : []);
+
+    const windowIds = Array.from(activeSessions.keys());
+    for (const windowId of windowIds) {
+        if (!allowedSet.has(windowId)) {
+            await flushSession(windowId, false);
+        }
+    }
+}
+
+async function flushSession(windowId, keepActive) {
+    const session = activeSessions.get(windowId);
+    if (!session) {
+        return;
+    }
+
+    const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+    if (elapsedSeconds > 0) {
+        await addUsage(session.siteKey, elapsedSeconds);
+    }
+
+    if (keepActive) {
+        session.startedAt = Date.now();
+        activeSessions.set(windowId, session);
+    } else {
+        activeSessions.delete(windowId);
+    }
+}
+
+async function flushSessionByTabId(tabId) {
+    for (const [windowId, session] of activeSessions.entries()) {
+        if (session.tabId === tabId) {
+            await flushSession(windowId, false);
+            break;
+        }
     }
 }
 
@@ -822,6 +876,10 @@ function normalizeSlowModeSeconds(value) {
     }
 
     return Math.min(3600, Math.max(0, Math.round(numericValue)));
+}
+
+function normalizeTrackingMode(value) {
+    return value === 'visible-windows' ? 'visible-windows' : 'focused';
 }
 
 function generateSalt() {

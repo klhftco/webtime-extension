@@ -19,6 +19,7 @@
             <button type="button" class="tab-row__tab" data-role="tab" data-tab="weekly">Weekly usage</button>
             <button type="button" class="tab-row__tab" data-role="tab" data-tab="protection">Protection</button>
             <button type="button" class="tab-row__tab" data-role="tab" data-tab="usage">Usage data</button>
+            <button type="button" class="tab-row__tab" data-role="tab" data-tab="experimental">Experimental</button>
         </div>
 
         <section class="tab-panel is-active" data-role="panel" data-panel="settings">
@@ -151,6 +152,35 @@
                 </div>
 
                 <p data-role="usage-status" class="save-status"></p>
+            </form>
+        </section>
+
+        <section class="tab-panel" data-role="panel" data-panel="experimental">
+            <form data-role="experimental-form" class="settings-form">
+                <div class="field field--group">
+                    <span>Tracking mode</span>
+                    <p>Focused mode tracks only the active tab of the focused window. Visible windows mode tracks the active tab in each non-minimized browser window (useful for split-screen). Chrome extensions cannot detect OS desktops, so for the most accurate tracking minimize windows or switch them to an untracked page (like the New Tab page) when moving them to another desktop.</p>
+                    <label class="field">
+                        <span>Mode</span>
+                        <select name="trackingMode">
+                            <option value="focused">Focused window only</option>
+                            <option value="visible-windows">Visible windows</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="field" data-role="experimental-pin-field">
+                    <label class="field">
+                        <span>PIN to confirm</span>
+                        <input type="password" name="experimentalPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                    </label>
+                    <p class="pin-status" data-role="experimental-pin-status">No PIN set.</p>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit">Save experimental</button>
+                    <p data-role="experimental-status" class="save-status"></p>
+                </div>
             </form>
         </section>
     </main>

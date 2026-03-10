@@ -9,7 +9,8 @@ const STORAGE_KEYS = {
         'settingsPinHash',
         'settingsPinSalt',
         'slowModeEnabled',
-        'slowModeSeconds'
+        'slowModeSeconds',
+        'trackingMode'
     ],
     local: ['usageByDay', 'settingsOpenedAt']
 };
@@ -22,7 +23,8 @@ const DEFAULT_SETTINGS = {
     settingsPinHash: '',
     settingsPinSalt: '',
     slowModeEnabled: false,
-    slowModeSeconds: 60
+    slowModeSeconds: 60,
+    trackingMode: 'focused'
 };
 
 const CHART_COLORS = [

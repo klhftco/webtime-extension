@@ -23,6 +23,12 @@ const usagePinEl = document.querySelector('[name="usagePin"]');
 const clearUsageConfirmEl = document.querySelector('[name="clearUsageConfirm"]');
 const usagePinFieldEl = document.querySelector('[data-role="usage-pin-field"]');
 const usagePinStatusEl = document.querySelector('[data-role="usage-pin-status"]');
+const experimentalFormEl = document.querySelector('[data-role="experimental-form"]');
+const trackingModeEl = document.querySelector('[name="trackingMode"]');
+const experimentalPinEl = document.querySelector('[name="experimentalPin"]');
+const experimentalStatusEl = document.querySelector('[data-role="experimental-status"]');
+const experimentalPinFieldEl = document.querySelector('[data-role="experimental-pin-field"]');
+const experimentalPinStatusEl = document.querySelector('[data-role="experimental-pin-status"]');
 const weeklyChartEl = document.querySelector('[data-role="weekly-chart"]');
 const weeklyTotalEl = document.querySelector('[data-role="weekly-total"]');
 const weeklyDetailTitleEl = document.querySelector('[data-role="weekly-detail-title"]');
@@ -142,6 +148,31 @@ usageClearButtonEl.addEventListener('click', async () => {
     await refreshWeeklyUsage();
 });
 
+experimentalFormEl.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const response = await chrome.runtime.sendMessage({
+        type: 'webtime:save-settings',
+        payload: buildSettingsPayload({
+            blockedSites: currentSettings ? currentSettings.blockedSites.join('\n') : blockedSitesEl.value,
+            siteLimitsText: currentSettings ? serializeLimitMap(currentSettings.siteLimitsByHostname) : siteLimitsEl.value,
+            blockedCategories: currentSettings ? currentSettings.blockedCategories.join('\n') : blockedCategoriesEl.value,
+            categoryLimitsText: currentSettings ? serializeLimitMap(currentSettings.categoryLimitsById) : categoryLimitsEl.value,
+            trackingMode: trackingModeEl.value,
+            pinAttempt: experimentalPinEl.value
+        })
+    });
+
+    if (response?.error) {
+        experimentalStatusEl.textContent = response.error;
+        return;
+    }
+
+    renderSettings(response.settings);
+    experimentalStatusEl.textContent = 'Saved.';
+    experimentalPinEl.value = '';
+});
+
 clearUsageConfirmEl.addEventListener('input', () => {
     usageClearButtonEl.disabled = !isClearConfirmReady();
 });
@@ -206,9 +237,13 @@ function renderSettings(settings) {
     pinStatusEl.textContent = settings.hasPin ? 'PIN set' : 'No PIN set';
     usagePinFieldEl.hidden = !settings.hasPin;
     usagePinStatusEl.hidden = settings.hasPin;
+    experimentalPinFieldEl.hidden = !settings.hasPin;
+    experimentalPinStatusEl.hidden = settings.hasPin;
     if (!settings.hasPin) {
         usagePinEl.value = '';
+        experimentalPinEl.value = '';
     }
+    trackingModeEl.value = settings.trackingMode || 'focused';
 }
 
 function buildSettingsPayload(overrides) {
@@ -219,6 +254,7 @@ function buildSettingsPayload(overrides) {
         categoryLimitsText: overrides.categoryLimitsText ?? categoryLimitsEl.value,
         slowModeEnabled: overrides.slowModeEnabled ?? slowModeEnabledEl.checked,
         slowModeSeconds: overrides.slowModeSeconds ?? slowModeSecondsEl.value,
+        trackingMode: overrides.trackingMode ?? trackingModeEl.value,
         pinAttempt: overrides.pinAttempt ?? pinAttemptEl.value,
         clearPin: overrides.clearPin ?? clearPinEl.checked,
         newPin: overrides.newPin ?? '',

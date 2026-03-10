@@ -18,6 +18,7 @@
             <button type="button" class="tab-row__tab is-active" data-role="tab" data-tab="settings">Settings</button>
             <button type="button" class="tab-row__tab" data-role="tab" data-tab="weekly">Weekly usage</button>
             <button type="button" class="tab-row__tab" data-role="tab" data-tab="protection">Protection</button>
+            <button type="button" class="tab-row__tab" data-role="tab" data-tab="usage">Usage data</button>
         </div>
 
         <section class="tab-panel is-active" data-role="panel" data-panel="settings">
@@ -119,6 +120,37 @@
                     <button type="submit">Save protection</button>
                     <p data-role="protection-status" class="save-status"></p>
                 </div>
+            </form>
+        </section>
+
+        <section class="tab-panel" data-role="panel" data-panel="usage">
+            <form data-role="usage-form" class="settings-form">
+                <div class="field field--group">
+                    <span>Usage data</span>
+                    <p>Export your full usage history as a JSON file, or clear it permanently.</p>
+                </div>
+
+                <div class="field field--group">
+                    <span>Export usage</span>
+                    <p>Download a JSON file with all tracked usage.</p>
+                    <button type="button" data-role="usage-dump">Download usage JSON</button>
+                </div>
+
+                <div class="field field--group">
+                    <span>Clear usage</span>
+                    <p>Type <code>permanently clear</code> to enable clearing all usage.</p>
+                    <input type="text" name="clearUsageConfirm" placeholder="permanently clear">
+                    <div class="field" data-role="usage-pin-field">
+                        <label class="field">
+                            <span>PIN to confirm</span>
+                            <input type="password" name="usagePin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                        <p class="pin-status" data-role="usage-pin-status">No PIN set.</p>
+                    </div>
+                    <button type="button" data-role="usage-clear" disabled>Clear all usage</button>
+                </div>
+
+                <p data-role="usage-status" class="save-status"></p>
             </form>
         </section>
     </main>

@@ -16,6 +16,13 @@ const saveStatusEl = document.querySelector('[data-role="save-status"]');
 const formEl = document.querySelector('[data-role="settings-form"]');
 const protectionFormEl = document.querySelector('[data-role="protection-form"]');
 const protectionStatusEl = document.querySelector('[data-role="protection-status"]');
+const usageDumpButtonEl = document.querySelector('[data-role="usage-dump"]');
+const usageClearButtonEl = document.querySelector('[data-role="usage-clear"]');
+const usageStatusEl = document.querySelector('[data-role="usage-status"]');
+const usagePinEl = document.querySelector('[name="usagePin"]');
+const clearUsageConfirmEl = document.querySelector('[name="clearUsageConfirm"]');
+const usagePinFieldEl = document.querySelector('[data-role="usage-pin-field"]');
+const usagePinStatusEl = document.querySelector('[data-role="usage-pin-status"]');
 const weeklyChartEl = document.querySelector('[data-role="weekly-chart"]');
 const weeklyTotalEl = document.querySelector('[data-role="weekly-total"]');
 const weeklyDetailTitleEl = document.querySelector('[data-role="weekly-detail-title"]');
@@ -86,6 +93,68 @@ protectionFormEl.addEventListener('submit', async (event) => {
     confirmPinEl.value = '';
 });
 
+usageDumpButtonEl.addEventListener('click', async () => {
+    usageStatusEl.textContent = 'Preparing export...';
+    const response = await chrome.runtime.sendMessage({
+        type: 'webtime:dump-usage',
+        pinAttempt: usagePinEl.value
+    });
+
+    if (response?.error) {
+        usageStatusEl.textContent = response.error;
+        return;
+    }
+
+    const filename = `webtime-usage-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    usageStatusEl.textContent = 'Usage export downloaded.';
+});
+
+usageClearButtonEl.addEventListener('click', async () => {
+    if (!isClearConfirmReady()) {
+        usageStatusEl.textContent = 'Type the confirmation phrase to enable clearing.';
+        return;
+    }
+
+    usageStatusEl.textContent = 'Clearing usage...';
+    const response = await chrome.runtime.sendMessage({
+        type: 'webtime:clear-usage',
+        pinAttempt: usagePinEl.value
+    });
+
+    if (response?.error) {
+        usageStatusEl.textContent = response.error;
+        return;
+    }
+
+    usageStatusEl.textContent = 'All usage data cleared.';
+    usagePinEl.value = '';
+    clearUsageConfirmEl.value = '';
+    usageClearButtonEl.disabled = true;
+    await refreshWeeklyUsage();
+});
+
+clearUsageConfirmEl.addEventListener('input', () => {
+    usageClearButtonEl.disabled = !isClearConfirmReady();
+});
+
+async function refreshWeeklyUsage() {
+    const weeklyResponse = await chrome.runtime.sendMessage({ type: 'webtime:get-weekly-usage' });
+    if (!weeklyResponse?.error) {
+        weeklyUsageState = weeklyResponse.weeklyUsage;
+        selectedDayKey = null;
+        renderWeeklyUsage(weeklyUsageState);
+    }
+}
+
 tabEls.forEach((tabEl) => {
     tabEl.addEventListener('click', () => {
         const targetTab = tabEl.dataset.tab;
@@ -135,6 +204,11 @@ function renderSettings(settings) {
     slowModeEnabledEl.checked = Boolean(settings.slowModeEnabled);
     slowModeSecondsEl.value = Number.isFinite(settings.slowModeSeconds) ? settings.slowModeSeconds : 60;
     pinStatusEl.textContent = settings.hasPin ? 'PIN set' : 'No PIN set';
+    usagePinFieldEl.hidden = !settings.hasPin;
+    usagePinStatusEl.hidden = settings.hasPin;
+    if (!settings.hasPin) {
+        usagePinEl.value = '';
+    }
 }
 
 function buildSettingsPayload(overrides) {
@@ -157,6 +231,10 @@ function serializeLimitMap(limitMap) {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, minutes]) => `${key} ${minutes}`)
         .join('\n');
+}
+
+function isClearConfirmReady() {
+    return clearUsageConfirmEl.value.trim().toLowerCase() === 'permanently clear';
 }
 
 function renderWeeklyUsage(weeklyUsage) {

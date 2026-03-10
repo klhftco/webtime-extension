@@ -97,6 +97,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message?.type === 'webtime:dump-usage') {
+        dumpUsage(message.pinAttempt)
+            .then((payload) => sendResponse(payload))
+            .catch((error) => sendResponse({ error: error.message }));
+        return true;
+    }
+
+    if (message?.type === 'webtime:clear-usage') {
+        clearUsage(message.pinAttempt)
+            .then(() => sendResponse({ ok: true }))
+            .catch((error) => sendResponse({ error: error.message }));
+        return true;
+    }
+
     if (message?.type === 'webtime:settings-opened') {
         recordSettingsOpened()
             .then(() => sendResponse({ ok: true }))
@@ -188,27 +202,10 @@ async function getSettings() {
 }
 
 async function saveSettings(payload) {
-    await ensureDefaults();
-    const current = await chrome.storage.sync.get(STORAGE_KEYS.sync);
-    const hasPin = Boolean(current.settingsPinHash);
-    const slowModeEnabled = Boolean(current.slowModeEnabled);
-    const slowModeSeconds = normalizeSlowModeSeconds(current.slowModeSeconds);
     const pinAttempt = typeof payload?.pinAttempt === 'string' ? payload.pinAttempt.trim() : '';
+    const current = await requireSettingsAuthorization(pinAttempt);
     const newPin = typeof payload?.newPin === 'string' ? payload.newPin.trim() : '';
     const newPinConfirm = typeof payload?.newPinConfirm === 'string' ? payload.newPinConfirm.trim() : '';
-
-    if (hasPin) {
-        if (!isValidPin(pinAttempt)) {
-            throw new Error('Enter the 4-digit PIN to change settings.');
-        }
-
-        const expected = await hashPin(pinAttempt, current.settingsPinSalt || '');
-        if (expected !== current.settingsPinHash) {
-            throw new Error('PIN did not match.');
-        }
-    } else if (slowModeEnabled) {
-        await assertSlowModeCooldown(slowModeSeconds);
-    }
 
     if (payload?.clearPin) {
         if (newPin || newPinConfirm) {
@@ -751,6 +748,44 @@ async function redirectTabToBlockedPage(tabId, payload) {
     blockedPageUrl.searchParams.set('target', payload?.targetUrl || '');
 
     await chrome.tabs.update(tabId, { url: blockedPageUrl.toString() });
+}
+
+async function dumpUsage(pinAttempt) {
+    await requireSettingsAuthorization(typeof pinAttempt === 'string' ? pinAttempt.trim() : '');
+    const store = await chrome.storage.local.get(STORAGE_KEYS.local);
+    const usageByDay = store.usageByDay || {};
+    return {
+        usageByDay,
+        exportedAt: new Date().toISOString()
+    };
+}
+
+async function clearUsage(pinAttempt) {
+    await requireSettingsAuthorization(typeof pinAttempt === 'string' ? pinAttempt.trim() : '');
+    await chrome.storage.local.set({ usageByDay: {} });
+}
+
+async function requireSettingsAuthorization(pinAttempt) {
+    await ensureDefaults();
+    const current = await chrome.storage.sync.get(STORAGE_KEYS.sync);
+    const hasPin = Boolean(current.settingsPinHash);
+    const slowModeEnabled = Boolean(current.slowModeEnabled);
+    const slowModeSeconds = normalizeSlowModeSeconds(current.slowModeSeconds);
+
+    if (hasPin) {
+        if (!isValidPin(pinAttempt)) {
+            throw new Error('Enter the 4-digit PIN to change settings.');
+        }
+
+        const expected = await hashPin(pinAttempt, current.settingsPinSalt || '');
+        if (expected !== current.settingsPinHash) {
+            throw new Error('PIN did not match.');
+        }
+    } else if (slowModeEnabled) {
+        await assertSlowModeCooldown(slowModeSeconds);
+    }
+
+    return current;
 }
 
 async function recordSettingsOpened() {

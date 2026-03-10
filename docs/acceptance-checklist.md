@@ -59,3 +59,9 @@ Use this list before considering a change ready.
 - If a settings password is set, changing limits or blocking settings requires that password.
 - If no password is set, settings changes are blocked until at least 5 minutes after the settings page is opened.
 - The 5-minute wait applies to the current settings session and resets on reload.
+
+## v2 Usage Data Controls
+
+- Usage data can be exported to a local file on demand.
+- Usage data can be cleared only after typing the required confirmation phrase.
+- Usage data export and clear require the PIN when set or the cooldown when no PIN is set.

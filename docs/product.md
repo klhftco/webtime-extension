@@ -60,6 +60,9 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - Add a small test harness for pure helper functions.
 - Replace approximate active-tab tracking with richer idle detection if needed.
 - Expand tracking beyond the focused tab of the active window if the product model becomes clear.
+- track "pickups" as switching domains to visit a page
+  - originally, iphone tracks how many times a phone is picked up and the immediate first app that's visited
+  - to replicate this behavior, detect/count # of times we go from new tab/any URL to the destination site, as long as the domain is unique/different.
 
 ## Design Principles
 

@@ -50,7 +50,9 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - Category blocks should apply to all sites in the category.
 - Categories should be assigned automatically from an offline list bundled with the extension.
 - Add richer schedule controls.
-- Add stronger friction for settings changes beyond a simple cooldown.
+- Add stronger friction for settings changes beyond a simple cooldown:
+  - if a password is set, require it to change limits and blocking settings
+  - if no password is set, require a minimum 5-minute wait after opening settings before changes are allowed
 - Add a small test harness for pure helper functions.
 - Replace approximate active-tab tracking with richer idle detection if needed.
 - Expand tracking beyond the focused tab of the active window if the product model becomes clear.

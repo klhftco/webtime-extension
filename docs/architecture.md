@@ -31,6 +31,8 @@
   - `siteLimitsByHostname[siteKey] = minutes`
   - `blockedCategories = [categoryId, ...]`
   - `categoryLimitsById[categoryId] = minutes`
+  - `settingsPasswordHash` (optional)
+  - `settingsCooldownStartedAt` (timestamp, optional)
   - blocked-window schedule definition
   - cooldown configuration or protected-change state
 
@@ -54,6 +56,7 @@
 
 - `popup` reads current-site usage, limit status, and today's site-key breakdown.
 - `options` page edits blocked sites and per-site limits.
+  - settings changes are gated by either a password or a 5-minute cooldown window
 - Future analytics surfaces should expose:
   - daily insights for the current day plus up to 4 weeks prior
   - all-time usage summaries
@@ -82,6 +85,7 @@
 - All-time usage can be derived from historical buckets or stored separately; deriving is simpler, while a separate rollup can be cheaper to query.
 - Category limits require a taxonomy and a mapping from site keys to categories; these need to be curated or user-editable.
 - Offline categories can include regex fallbacks for hostname-only matching (e.g. adult patterns).
+- Password-based settings changes require local hashing and do not protect against extension removal.
 
 ## When Changing Architecture
 

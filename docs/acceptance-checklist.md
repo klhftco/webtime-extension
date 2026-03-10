@@ -53,3 +53,9 @@ Use this list before considering a change ready.
 - If a category has a limit, all sites in that category contribute to reaching the limit.
 - If a category is blocked, all sites in that category are blocked immediately.
 - Site-level limits and category-level limits both apply; if either triggers a block, the site is blocked.
+
+## v2 Settings Friction Expectations
+
+- If a settings password is set, changing limits or blocking settings requires that password.
+- If no password is set, settings changes are blocked until at least 5 minutes after the settings page is opened.
+- The 5-minute wait applies to the current settings session and resets on reload.

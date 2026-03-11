@@ -56,6 +56,7 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - Add usage data controls:
   - allow dumping/exporting all usage data
   - allow clearing all usage data with a typed confirmation phrase
+  - ~~allow clearing data by day~~ (shipped in v0: "Clear day data" button in weekly usage)
   - require the settings PIN if set (or slow-mode cooldown if no PIN)
 - Add a small test harness for pure helper functions.
 - Replace approximate active-tab tracking with richer idle detection if needed.

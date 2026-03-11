@@ -111,6 +111,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message?.type === 'webtime:clear-day-usage') {
+        clearDayUsage(message.dayKey, message.pinAttempt)
+            .then(() => sendResponse({ ok: true }))
+            .catch((error) => sendResponse({ error: error.message }));
+        return true;
+    }
+
     if (message?.type === 'webtime:settings-opened') {
         recordSettingsOpened()
             .then(() => sendResponse({ ok: true }))
@@ -998,6 +1005,19 @@ async function dumpUsage(pinAttempt) {
 async function clearUsage(pinAttempt) {
     await requireSettingsAuthorization(typeof pinAttempt === 'string' ? pinAttempt.trim() : '');
     await chrome.storage.local.set({ usageByDay: {}, pickupsByDay: {} });
+}
+
+async function clearDayUsage(dayKey, pinAttempt) {
+    if (!dayKey || typeof dayKey !== 'string') {
+        throw new Error('Invalid day key.');
+    }
+    await requireSettingsAuthorization(typeof pinAttempt === 'string' ? pinAttempt.trim() : '');
+    const store = await chrome.storage.local.get(['usageByDay', 'pickupsByDay']);
+    const usageByDay = store.usageByDay || {};
+    const pickupsByDay = store.pickupsByDay || {};
+    delete usageByDay[dayKey];
+    delete pickupsByDay[dayKey];
+    await chrome.storage.local.set({ usageByDay, pickupsByDay });
 }
 
 async function requireSettingsAuthorization(pinAttempt) {

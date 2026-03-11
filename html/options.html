@@ -72,7 +72,11 @@
                 <div class="weekly-detail">
                     <div class="weekly-detail__header">
                         <p class="weekly-detail__title" data-role="weekly-detail-title">Top 30 by weekly total</p>
-                        <button type="button" class="weekly-detail__clear" data-role="clear-weekly-selection" hidden>Clear day</button>
+                        <button type="button" class="weekly-detail__clear" data-role="clear-weekly-selection" hidden>Clear day data</button>
+                    </div>
+                    <div data-role="clear-weekly-pin-field" hidden style="display:none">
+                        <input type="password" name="clearWeeklyPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="PIN to confirm">
+                        <p class="save-status" data-role="clear-weekly-status"></p>
                     </div>
                     <ul class="weekly-detail__list" data-role="weekly-detail-list"></ul>
                 </div>
@@ -80,11 +84,15 @@
                 <div class="weekly-detail weekly-detail--pickups">
                     <div class="weekly-detail__header">
                         <p class="weekly-detail__title">Pickups by day</p>
-                        <button type="button" class="weekly-detail__clear" data-role="clear-pickups-selection" hidden>Clear day</button>
                     </div>
                     <div class="weekly-chart weekly-chart--pickups" data-role="weekly-pickups-chart"></div>
                     <div class="weekly-detail__header">
                         <p class="weekly-detail__title">Top 20 pickups</p>
+                        <button type="button" class="weekly-detail__clear" data-role="clear-pickups-selection" hidden>Clear day data</button>
+                    </div>
+                    <div data-role="clear-pickups-pin-field" hidden style="display:none">
+                        <input type="password" name="clearPickupsPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="PIN to confirm">
+                        <p class="save-status" data-role="clear-pickups-status"></p>
                     </div>
                     <ul class="weekly-detail__list" data-role="weekly-pickups-list"></ul>
                 </div>

@@ -36,15 +36,20 @@ const weeklyTotalEl = document.querySelector('[data-role="weekly-total"]');
 const weeklyDetailTitleEl = document.querySelector('[data-role="weekly-detail-title"]');
 const weeklyDetailListEl = document.querySelector('[data-role="weekly-detail-list"]');
 const clearWeeklySelectionEl = document.querySelector('[data-role="clear-weekly-selection"]');
+const clearWeeklyPinFieldEl = document.querySelector('[data-role="clear-weekly-pin-field"]');
+const clearWeeklyPinEl = document.querySelector('[name="clearWeeklyPin"]');
+const clearWeeklyStatusEl = document.querySelector('[data-role="clear-weekly-status"]');
 const weeklyPickupsChartEl = document.querySelector('[data-role="weekly-pickups-chart"]');
 const weeklyPickupsListEl = document.querySelector('[data-role="weekly-pickups-list"]');
 const clearPickupsSelectionEl = document.querySelector('[data-role="clear-pickups-selection"]');
+const clearPickupsPinFieldEl = document.querySelector('[data-role="clear-pickups-pin-field"]');
+const clearPickupsPinEl = document.querySelector('[name="clearPickupsPin"]');
+const clearPickupsStatusEl = document.querySelector('[data-role="clear-pickups-status"]');
 const tabEls = Array.from(document.querySelectorAll('[data-role="tab"]'));
 const panelEls = Array.from(document.querySelectorAll('[data-role="panel"]'));
 
 let weeklyUsageState = null;
 let selectedDayKey = null;
-let selectedPickupDayKey = null;
 let currentSettings = null;
 
 bootstrapOptions();
@@ -201,15 +206,41 @@ tabEls.forEach((tabEl) => {
     });
 });
 
-clearWeeklySelectionEl.addEventListener('click', () => {
+clearWeeklySelectionEl.addEventListener('click', async () => {
+    clearWeeklyStatusEl.textContent = 'Clearing...';
+    const response = await chrome.runtime.sendMessage({
+        type: 'webtime:clear-day-usage',
+        dayKey: selectedDayKey,
+        pinAttempt: clearWeeklyPinEl.value
+    });
+
+    if (response?.error) {
+        clearWeeklyStatusEl.textContent = response.error;
+        return;
+    }
+
+    clearWeeklyPinEl.value = '';
     selectedDayKey = null;
-    renderWeeklyUsage(weeklyUsageState);
+    await refreshWeeklyUsage();
 });
 
 if (clearPickupsSelectionEl) {
-    clearPickupsSelectionEl.addEventListener('click', () => {
-        selectedPickupDayKey = null;
-        renderWeeklyUsage(weeklyUsageState);
+    clearPickupsSelectionEl.addEventListener('click', async () => {
+        clearPickupsStatusEl.textContent = 'Clearing...';
+        const response = await chrome.runtime.sendMessage({
+            type: 'webtime:clear-day-usage',
+            dayKey: selectedDayKey,
+            pinAttempt: clearPickupsPinEl.value
+        });
+
+        if (response?.error) {
+            clearPickupsStatusEl.textContent = response.error;
+            return;
+        }
+
+        clearPickupsPinEl.value = '';
+        selectedDayKey = null;
+        await refreshWeeklyUsage();
     });
 }
 
@@ -358,6 +389,9 @@ function renderWeeklyDetail(weeklyUsage) {
     if (!selectedDayKey) {
         weeklyDetailTitleEl.textContent = 'Top 30 by weekly total';
         clearWeeklySelectionEl.hidden = true;
+        togglePinField(clearWeeklyPinFieldEl, false);
+        clearWeeklyStatusEl.textContent = '';
+        clearWeeklyPinEl.value = '';
         weeklyDetailListEl.innerHTML = weeklyUsage.defaultList
             .map((entry) => `
                 <li class="weekly-detail__item">
@@ -381,6 +415,7 @@ function renderWeeklyDetail(weeklyUsage) {
 
     weeklyDetailTitleEl.textContent = `${selectedBar.label} usage`;
     clearWeeklySelectionEl.hidden = false;
+    togglePinField(clearWeeklyPinFieldEl, Boolean(currentSettings?.hasPin));
     weeklyDetailListEl.innerHTML = selectedBar.detailEntries
         .map((entry) => `
             <li class="weekly-detail__item">
@@ -427,7 +462,7 @@ function renderWeeklyPickups(pickups) {
                 })
                 .join('');
             return `
-                <article class="weekly-bar ${selectedPickupDayKey === entry.dayKey ? 'is-selected' : ''}" data-day-key="${entry.dayKey}">
+                <article class="weekly-bar ${selectedDayKey === entry.dayKey ? 'is-selected' : ''}" data-day-key="${entry.dayKey}">
                     <div class="weekly-bar__frame">
                         <div class="weekly-bar__stack" style="height:${height}%">${segmentsHtml}</div>
                     </div>
@@ -441,8 +476,8 @@ function renderWeeklyPickups(pickups) {
     Array.from(weeklyPickupsChartEl.querySelectorAll('.weekly-bar')).forEach((barEl) => {
         barEl.addEventListener('click', () => {
             const dayKey = barEl.dataset.dayKey;
-            selectedPickupDayKey = selectedPickupDayKey === dayKey ? null : dayKey;
-            renderWeeklyPickups(pickups);
+            selectedDayKey = selectedDayKey === dayKey ? null : dayKey;
+            renderWeeklyUsage(weeklyUsageState);
         });
     });
 
@@ -450,8 +485,11 @@ function renderWeeklyPickups(pickups) {
 }
 
 function renderPickupList(pickups, pickupsLegendMap) {
-    if (!selectedPickupDayKey) {
+    if (!selectedDayKey) {
         clearPickupsSelectionEl.hidden = true;
+        togglePinField(clearPickupsPinFieldEl, false);
+        clearPickupsStatusEl.textContent = '';
+        clearPickupsPinEl.value = '';
         weeklyPickupsListEl.innerHTML = pickups.topSites.length
             ? pickups.topSites
             .map((entry) => `
@@ -468,14 +506,15 @@ function renderPickupList(pickups, pickupsLegendMap) {
         return;
     }
 
-    const selected = pickups.daily.find((entry) => entry.dayKey === selectedPickupDayKey);
+    const selected = pickups.daily.find((entry) => entry.dayKey === selectedDayKey);
     if (!selected) {
-        selectedPickupDayKey = null;
+        selectedDayKey = null;
         renderPickupList(pickups, pickupsLegendMap);
         return;
     }
 
     clearPickupsSelectionEl.hidden = false;
+    togglePinField(clearPickupsPinFieldEl, Boolean(currentSettings?.hasPin));
     weeklyPickupsListEl.innerHTML = selected.detailEntries.length
         ? selected.detailEntries
             .map((entry) => `

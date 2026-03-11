@@ -3,6 +3,7 @@
 importScripts('shared.js');
 
 const activeSessions = new Map();
+const hostnameSessionMap = new Map();
 const tabLastUrl = new Map();
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -563,11 +564,22 @@ async function syncWindowSession(windowId, tab, settings) {
     }
 
     await flushSession(windowId, false);
+
+    if (settings.trackingMode === 'visible-windows') {
+        const owner = hostnameSessionMap.get(siteKey);
+        if (owner && owner !== windowId) {
+            await pushStateToTab(tab.id, tab.url);
+            return;
+        }
+    }
+
     activeSessions.set(windowId, {
         tabId: tab.id,
         siteKey,
         startedAt: Date.now()
     });
+
+    hostnameSessionMap.set(siteKey, windowId);
 
     await pushStateToTab(tab.id, tab.url);
 }
@@ -608,6 +620,9 @@ async function flushSession(windowId, keepActive) {
         activeSessions.set(windowId, session);
     } else {
         activeSessions.delete(windowId);
+        if (hostnameSessionMap.get(session.siteKey) === windowId) {
+            hostnameSessionMap.delete(session.siteKey);
+        }
     }
 }
 
@@ -932,6 +947,13 @@ async function handleTabNavigation(tabId, tab) {
 
     if (previousHost === currentHost) {
         return;
+    }
+
+    if (settings.trackingMode === 'visible-windows') {
+        const owner = hostnameSessionMap.get(currentHost);
+        if (owner && owner !== tab.windowId) {
+            return;
+        }
     }
 
     await addPickup(currentHost);

@@ -3,15 +3,18 @@
 importScripts('shared.js');
 
 const activeSessions = new Map();
+const tabLastUrl = new Map();
 
 chrome.runtime.onInstalled.addListener(async () => {
     await ensureDefaults();
+    await seedTabUrls();
     await syncActiveSessions();
     await refreshAllTabs();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
     await ensureDefaults();
+    await seedTabUrls();
     await syncActiveSessions();
     await refreshAllTabs();
 });
@@ -34,10 +37,15 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         await syncActiveSessions(tabId);
         await pushStateToTab(tabId, tab.url);
     }
+
+    if (changeInfo.url || changeInfo.status === 'complete') {
+        await handleTabNavigation(tabId, tab);
+    }
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
     await flushSessionByTabId(tabId);
+    tabLastUrl.delete(tabId);
 });
 
 chrome.alarms.create('heartbeat', { periodInMinutes: 1 });
@@ -366,6 +374,7 @@ function buildChartData(usageByHostname, maxEntries) {
 async function getWeeklyUsage() {
     const store = await chrome.storage.local.get(STORAGE_KEYS.local);
     const usageByDay = store.usageByDay || {};
+    const pickupsByDay = store.pickupsByDay || {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const sunday = new Date(today);
@@ -377,12 +386,20 @@ async function getWeeklyUsage() {
     });
     const normalizedDays = weeklyDayKeys.map((dayKey) => ({
         dayKey,
-        usage: normalizeUsageMap(usageByDay[dayKey] || {})
+        usage: normalizeUsageMap(usageByDay[dayKey] || {}),
+        pickups: normalizePickupMap(pickupsByDay[dayKey] || {})
     }));
 
     const weeklyTotals = normalizedDays.reduce((totals, day) => {
         Object.entries(day.usage).forEach(([siteKey, seconds]) => {
             totals[siteKey] = (totals[siteKey] || 0) + seconds;
+        });
+        return totals;
+    }, {});
+
+    const weeklyPickupTotals = normalizedDays.reduce((totals, day) => {
+        Object.entries(day.pickups).forEach(([siteKey, count]) => {
+            totals[siteKey] = (totals[siteKey] || 0) + count;
         });
         return totals;
     }, {});
@@ -419,6 +436,46 @@ async function getWeeklyUsage() {
         };
     });
 
+    const pickupDaily = normalizedDays.map((day) => {
+        const detailEntries = Object.entries(day.pickups)
+            .filter(([, count]) => count > 0)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(([siteKey, count]) => ({ siteKey, count }));
+        return {
+            dayKey: day.dayKey,
+            label: formatWeeklyLabel(day.dayKey),
+            count: Object.values(day.pickups).reduce((sum, count) => sum + count, 0),
+            detailEntries
+        };
+    });
+
+    const pickupTotal = pickupDaily.reduce((sum, day) => sum + day.count, 0);
+    const pickupTopSites = Object.entries(weeklyPickupTotals)
+        .filter(([, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([siteKey, count]) => ({ siteKey, count }));
+    const pickupLegend = pickupTopSites.slice(0, 10).map((entry, index) => ({
+        siteKey: entry.siteKey,
+        color: CHART_COLORS[index % CHART_COLORS.length]
+    }));
+    const pickupLegendKeys = pickupLegend.map((entry) => entry.siteKey);
+    if (pickupTopSites.length > pickupLegendKeys.length) {
+        pickupLegend.push({ siteKey: 'Other', color: '#e8dccb' });
+    }
+
+    normalizedDays.forEach((day, index) => {
+        const groupedPickups = buildGroupedPickupsForKeys(day.pickups, pickupLegendKeys);
+        pickupDaily[index].segments = pickupLegend
+            .map((entry) => ({
+                siteKey: entry.siteKey,
+                color: entry.color,
+                count: groupedPickups[entry.siteKey] || 0
+            }))
+            .filter((segment) => segment.count > 0);
+    });
+
     const weekTotalSeconds = bars.reduce((sum, bar) => sum + bar.totalSeconds, 0);
     const defaultList = Object.entries(weeklyTotals)
         .filter(([, seconds]) => seconds > 0)
@@ -429,7 +486,18 @@ async function getWeeklyUsage() {
             totalSeconds: seconds
         }));
 
-    return { bars, legend, weekTotalSeconds, defaultList };
+    return {
+        bars,
+        legend,
+        weekTotalSeconds,
+        defaultList,
+        pickups: {
+            daily: pickupDaily,
+            total: pickupTotal,
+            topSites: pickupTopSites,
+            legend: pickupLegend
+        }
+    };
 }
 
 function buildGroupedEntries(usageByHostname, maxEntries) {
@@ -564,6 +632,18 @@ async function addUsage(hostname, secondsToAdd) {
     await chrome.storage.local.set({ usageByDay });
 }
 
+async function addPickup(hostname) {
+    const store = await chrome.storage.local.get(STORAGE_KEYS.local);
+    const pickupsByDay = store.pickupsByDay || {};
+    const todayKey = getTodayKey();
+    const todayPickups = normalizePickupMap(pickupsByDay[todayKey] || {});
+
+    todayPickups[hostname] = (todayPickups[hostname] || 0) + 1;
+    pickupsByDay[todayKey] = todayPickups;
+
+    await chrome.storage.local.set({ pickupsByDay });
+}
+
 async function getTodayUsageByHostname() {
     return getUsageByDayOffset(0);
 }
@@ -576,6 +656,23 @@ function normalizeUsageMap(usageMap) {
         }
 
         normalized[cleanHostname] = (normalized[cleanHostname] || 0) + seconds;
+        return normalized;
+    }, {});
+}
+
+function normalizePickupMap(pickupMap) {
+    return Object.entries(pickupMap).reduce((normalized, [hostname, count]) => {
+        const cleanHostname = normalizeHostname(hostname);
+        if (!cleanHostname) {
+            return normalized;
+        }
+
+        const numericCount = Number(count);
+        if (!Number.isFinite(numericCount) || numericCount <= 0) {
+            return normalized;
+        }
+
+        normalized[cleanHostname] = (normalized[cleanHostname] || 0) + Math.round(numericCount);
         return normalized;
     }, {});
 }
@@ -782,12 +879,72 @@ async function refreshAllTabs() {
     );
 }
 
+async function seedTabUrls() {
+    const tabs = await chrome.tabs.query({});
+    tabs.forEach((tab) => {
+        if (typeof tab.id === 'number') {
+            tabLastUrl.set(tab.id, tab.url || '');
+        }
+    });
+}
+
 async function pushStateToTab(tabId, urlString) {
     const state = await getSiteState(urlString);
     await chrome.tabs.sendMessage(tabId, {
         type: 'webtime:apply-site-state',
         payload: state
     }).catch(() => undefined);
+}
+
+async function handleTabNavigation(tabId, tab) {
+    if (!tab?.url) {
+        return;
+    }
+
+    const settings = await getSettings();
+    if (!(await isTrackedWindow(tab, settings))) {
+        tabLastUrl.set(tabId, tab.url);
+        return;
+    }
+
+    if (!tab.active) {
+        tabLastUrl.set(tabId, tab.url);
+        return;
+    }
+
+    const currentParsed = safeParseUrl(tab.url);
+    const previousUrl = tabLastUrl.get(tabId) || '';
+    tabLastUrl.set(tabId, tab.url);
+
+    if (!currentParsed || !isTrackableUrl(currentParsed)) {
+        return;
+    }
+
+    const previousParsed = safeParseUrl(previousUrl);
+    const previousHost = previousParsed && isTrackableUrl(previousParsed)
+        ? normalizeHostname(previousParsed.hostname || '')
+        : '';
+    const currentHost = normalizeHostname(currentParsed.hostname || '');
+
+    if (!currentHost) {
+        return;
+    }
+
+    if (previousHost === currentHost) {
+        return;
+    }
+
+    await addPickup(currentHost);
+}
+
+async function isTrackedWindow(tab, settings) {
+    if (settings.trackingMode === 'visible-windows') {
+        const window = await chrome.windows.get(tab.windowId).catch(() => null);
+        return Boolean(window && window.state !== 'minimized');
+    }
+
+    const focused = await chrome.windows.getLastFocused().catch(() => null);
+    return Boolean(focused && focused.id === tab.windowId);
 }
 
 async function redirectTabToBlockedPage(tabId, payload) {
@@ -808,15 +965,17 @@ async function dumpUsage(pinAttempt) {
     await requireSettingsAuthorization(typeof pinAttempt === 'string' ? pinAttempt.trim() : '');
     const store = await chrome.storage.local.get(STORAGE_KEYS.local);
     const usageByDay = store.usageByDay || {};
+    const pickupsByDay = store.pickupsByDay || {};
     return {
         usageByDay,
+        pickupsByDay,
         exportedAt: new Date().toISOString()
     };
 }
 
 async function clearUsage(pinAttempt) {
     await requireSettingsAuthorization(typeof pinAttempt === 'string' ? pinAttempt.trim() : '');
-    await chrome.storage.local.set({ usageByDay: {} });
+    await chrome.storage.local.set({ usageByDay: {}, pickupsByDay: {} });
 }
 
 async function requireSettingsAuthorization(pinAttempt) {
@@ -943,6 +1102,18 @@ function buildGroupedUsageForKeys(usageMap, rankedKeys) {
     Object.entries(usageMap).forEach(([siteKey, seconds]) => {
         const bucket = allowedKeys.has(siteKey) ? siteKey : 'Other';
         totals[bucket] = (totals[bucket] || 0) + seconds;
+    });
+
+    return totals;
+}
+
+function buildGroupedPickupsForKeys(pickupMap, rankedKeys) {
+    const totals = {};
+    const allowedKeys = new Set(rankedKeys);
+
+    Object.entries(pickupMap).forEach(([siteKey, count]) => {
+        const bucket = allowedKeys.has(siteKey) ? siteKey : 'Other';
+        totals[bucket] = (totals[bucket] || 0) + count;
     });
 
     return totals;

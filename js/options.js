@@ -36,11 +36,15 @@ const weeklyTotalEl = document.querySelector('[data-role="weekly-total"]');
 const weeklyDetailTitleEl = document.querySelector('[data-role="weekly-detail-title"]');
 const weeklyDetailListEl = document.querySelector('[data-role="weekly-detail-list"]');
 const clearWeeklySelectionEl = document.querySelector('[data-role="clear-weekly-selection"]');
+const weeklyPickupsChartEl = document.querySelector('[data-role="weekly-pickups-chart"]');
+const weeklyPickupsListEl = document.querySelector('[data-role="weekly-pickups-list"]');
+const clearPickupsSelectionEl = document.querySelector('[data-role="clear-pickups-selection"]');
 const tabEls = Array.from(document.querySelectorAll('[data-role="tab"]'));
 const panelEls = Array.from(document.querySelectorAll('[data-role="panel"]'));
 
 let weeklyUsageState = null;
 let selectedDayKey = null;
+let selectedPickupDayKey = null;
 let currentSettings = null;
 
 bootstrapOptions();
@@ -202,6 +206,13 @@ clearWeeklySelectionEl.addEventListener('click', () => {
     renderWeeklyUsage(weeklyUsageState);
 });
 
+if (clearPickupsSelectionEl) {
+    clearPickupsSelectionEl.addEventListener('click', () => {
+        selectedPickupDayKey = null;
+        renderWeeklyUsage(weeklyUsageState);
+    });
+}
+
 async function bootstrapOptions() {
     const [settingsResponse, weeklyResponse] = await Promise.all([
         chrome.runtime.sendMessage({ type: 'webtime:get-settings' }),
@@ -219,6 +230,8 @@ async function bootstrapOptions() {
     if (!weeklyResponse?.error) {
         weeklyUsageState = weeklyResponse.weeklyUsage;
         renderWeeklyUsage(weeklyUsageState);
+    } else if (weeklyTotalEl) {
+        weeklyTotalEl.textContent = weeklyResponse?.error || 'Unable to load weekly usage.';
     }
 }
 
@@ -292,6 +305,12 @@ function renderWeeklyUsage(weeklyUsage) {
     if (!weeklyUsage?.bars?.length) {
         weeklyChartEl.innerHTML = '';
         weeklyDetailListEl.innerHTML = '';
+        if (weeklyPickupsChartEl) {
+            weeklyPickupsChartEl.innerHTML = '';
+        }
+        if (weeklyPickupsListEl) {
+            weeklyPickupsListEl.innerHTML = '';
+        }
         return;
     }
 
@@ -330,6 +349,7 @@ function renderWeeklyUsage(weeklyUsage) {
     });
 
     renderWeeklyDetail(weeklyUsage);
+    renderWeeklyPickups(weeklyUsage.pickups);
 }
 
 function renderWeeklyDetail(weeklyUsage) {
@@ -380,4 +400,93 @@ function renderDetailSwatch(color) {
     }
 
     return `<span class="weekly-detail__swatch" style="background:${color}" aria-hidden="true"></span>`;
+}
+
+function renderWeeklyPickups(pickups) {
+    if (!pickups || !weeklyPickupsChartEl || !weeklyPickupsListEl) {
+        if (weeklyPickupsChartEl) {
+            weeklyPickupsChartEl.innerHTML = '';
+        }
+        if (weeklyPickupsListEl) {
+            weeklyPickupsListEl.innerHTML = '';
+        }
+        return;
+    }
+
+    const pickupsLegendMap = new Map((pickups.legend || []).map((entry) => [entry.siteKey, entry.color]));
+    const maxCount = Math.max(...pickups.daily.map((entry) => entry.count), 1);
+    weeklyPickupsChartEl.innerHTML = pickups.daily
+        .map((entry) => {
+            const height = entry.count === 0 ? 0 : Math.max(2, (entry.count / maxCount) * 90);
+            const segments = entry.segments || [];
+            const total = segments.reduce((sum, segment) => sum + segment.count, 0);
+            const segmentsHtml = segments
+                .map((segment) => {
+                    const segmentHeight = total === 0 ? 0 : (segment.count / total) * 100;
+                    return `<span class="weekly-bar__segment" style="height:${segmentHeight}%;background:${segment.color}" title="${segment.siteKey}: ${segment.count}"></span>`;
+                })
+                .join('');
+            return `
+                <article class="weekly-bar ${selectedPickupDayKey === entry.dayKey ? 'is-selected' : ''}" data-day-key="${entry.dayKey}">
+                    <div class="weekly-bar__frame">
+                        <div class="weekly-bar__stack" style="height:${height}%">${segmentsHtml}</div>
+                    </div>
+                    <p class="weekly-bar__total">${entry.count}</p>
+                    <p class="weekly-bar__label">${entry.label}</p>
+                </article>
+            `;
+        })
+        .join('');
+
+    Array.from(weeklyPickupsChartEl.querySelectorAll('.weekly-bar')).forEach((barEl) => {
+        barEl.addEventListener('click', () => {
+            const dayKey = barEl.dataset.dayKey;
+            selectedPickupDayKey = selectedPickupDayKey === dayKey ? null : dayKey;
+            renderWeeklyPickups(pickups);
+        });
+    });
+
+    renderPickupList(pickups, pickupsLegendMap);
+}
+
+function renderPickupList(pickups, pickupsLegendMap) {
+    if (!selectedPickupDayKey) {
+        clearPickupsSelectionEl.hidden = true;
+        weeklyPickupsListEl.innerHTML = pickups.topSites.length
+            ? pickups.topSites
+            .map((entry) => `
+                <li class="weekly-detail__item">
+                    <span class="weekly-detail__site">
+                        ${renderDetailSwatch(pickupsLegendMap.get(entry.siteKey))}
+                        <span>${entry.siteKey}</span>
+                    </span>
+                    <span class="weekly-detail__value">${entry.count}</span>
+                </li>
+            `)
+            .join('')
+        : '<li class="weekly-detail__empty">No pickups yet.</li>';
+        return;
+    }
+
+    const selected = pickups.daily.find((entry) => entry.dayKey === selectedPickupDayKey);
+    if (!selected) {
+        selectedPickupDayKey = null;
+        renderPickupList(pickups, pickupsLegendMap);
+        return;
+    }
+
+    clearPickupsSelectionEl.hidden = false;
+    weeklyPickupsListEl.innerHTML = selected.detailEntries.length
+        ? selected.detailEntries
+            .map((entry) => `
+                <li class="weekly-detail__item">
+                    <span class="weekly-detail__site">
+                        ${renderDetailSwatch(pickupsLegendMap.get(entry.siteKey))}
+                        <span>${entry.siteKey}</span>
+                    </span>
+                    <span class="weekly-detail__value">${entry.count}</span>
+                </li>
+            `)
+            .join('')
+        : '<li class="weekly-detail__empty">No pickups for this day.</li>';
 }

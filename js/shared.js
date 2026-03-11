@@ -12,7 +12,7 @@ const STORAGE_KEYS = {
         'slowModeSeconds',
         'trackingMode'
     ],
-    local: ['usageByDay', 'settingsOpenedAt']
+    local: ['usageByDay', 'pickupsByDay', 'settingsOpenedAt']
 };
 
 const DEFAULT_SETTINGS = {

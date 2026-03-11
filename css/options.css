@@ -142,6 +142,15 @@ textarea::placeholder {
     color: var(--muted);
 }
 
+.weekly-detail--pickups {
+    margin-top: 1.5rem;
+}
+
+.weekly-chart--pickups {
+    min-height: 220px;
+    margin-bottom: 1.25rem;
+}
+
 .field {
     display: block;
     margin-bottom: 1rem;

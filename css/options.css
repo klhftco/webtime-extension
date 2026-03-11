@@ -325,3 +325,15 @@ textarea::placeholder {
     background: transparent;
     border: 1px solid rgba(217, 203, 191, 0.7);
 }
+
+.weekly-bar__segment.is-dimmed {
+    opacity: 0.35;
+}
+
+.weekly-detail__item.is-dimmed {
+    opacity: 0.3;
+}
+
+.weekly-detail__item.is-highlighted {
+    font-weight: 600;
+}

@@ -154,3 +154,11 @@ button {
 .legend__value {
     color: var(--muted);
 }
+
+.legend__item.is-dimmed {
+    opacity: 0.3;
+}
+
+.legend__item.is-highlighted .legend__host {
+    font-weight: 600;
+}

@@ -14,6 +14,7 @@ const newerDayEl = document.querySelector('[data-role="newer-day"]');
 
 let currentDayOffset = 0;
 let refreshTimer = null;
+let currentChartData = null;
 
 bootstrapPopup();
 startLiveRefresh();
@@ -77,8 +78,47 @@ function renderCurrentSite(site, trackingMode) {
     statusEl.textContent = `${buildTrackingStatus(trackingMode)} No explicit site limit.`;
 }
 
+function fadeColor(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const nr = 218, ng = 210, nb = 204;
+    return `rgb(${Math.round(r * 0.25 + nr * 0.75)},${Math.round(g * 0.25 + ng * 0.75)},${Math.round(b * 0.25 + nb * 0.75)})`;
+}
+
+function buildPieGradient(entries, totalSeconds, highlightHostname) {
+    let offset = 0;
+    return `conic-gradient(${entries.map((entry) => {
+        const start = (offset / totalSeconds) * 360;
+        offset += entry.seconds;
+        const end = (offset / totalSeconds) * 360;
+        const color = highlightHostname === null || entry.hostname === highlightHostname
+            ? entry.color
+            : fadeColor(entry.color);
+        return `${color} ${start}deg ${end}deg`;
+    }).join(', ')})`;
+}
+
+function highlightPieSite(hostname) {
+    if (!currentChartData) return;
+    const { entries, totalSeconds } = currentChartData;
+    chartEl.style.background = buildPieGradient(entries, totalSeconds, hostname);
+    legendEl.querySelectorAll('.legend__item').forEach((itemEl) => {
+        const match = itemEl.dataset.hostname === hostname;
+        itemEl.classList.toggle('is-dimmed', !match);
+        itemEl.classList.toggle('is-highlighted', match);
+    });
+}
+
+function clearPieHighlight() {
+    if (!currentChartData) return;
+    chartEl.style.background = currentChartData.gradient;
+    legendEl.querySelectorAll('.legend__item').forEach((el) => el.classList.remove('is-dimmed', 'is-highlighted'));
+}
+
 function renderChart(chart, chartDayLabel) {
     chartDayEl.textContent = chartDayLabel;
+    currentChartData = null;
 
     if (!chart?.entries?.length) {
         chartEl.style.background = 'linear-gradient(180deg, #f2e7d6 0%, #eadbc4 100%)';
@@ -88,26 +128,44 @@ function renderChart(chart, chartDayLabel) {
     }
 
     const totalSeconds = chart.entries.reduce((sum, entry) => sum + entry.seconds, 0);
-    let offset = 0;
-    const segments = chart.entries.map((entry) => {
-        const start = (offset / totalSeconds) * 360;
-        offset += entry.seconds;
-        const end = (offset / totalSeconds) * 360;
-        return `${entry.color} ${start}deg ${end}deg`;
-    });
+    const gradient = buildPieGradient(chart.entries, totalSeconds, null);
+    chartEl.style.background = gradient;
+    currentChartData = { entries: chart.entries, totalSeconds, gradient };
 
-    chartEl.style.background = `conic-gradient(${segments.join(', ')})`;
     totalEl.textContent = `${formatMinutes(chart.totalMinutes)} tracked`;
     legendEl.innerHTML = chart.entries
         .map((entry) => `
-            <li class="legend__item">
+            <li class="legend__item" data-hostname="${entry.hostname}">
                 <span class="legend__swatch" style="background:${entry.color}"></span>
                 <span class="legend__host">${entry.hostname}</span>
                 <span class="legend__value">${formatMinutes(entry.minutes)}</span>
             </li>
         `)
         .join('');
+
+    legendEl.querySelectorAll('.legend__item').forEach((itemEl) => {
+        itemEl.addEventListener('mouseenter', () => highlightPieSite(itemEl.dataset.hostname));
+        itemEl.addEventListener('mouseleave', clearPieHighlight);
+    });
 }
+
+chartEl.addEventListener('mousemove', (e) => {
+    if (!currentChartData) return;
+    const rect = chartEl.getBoundingClientRect();
+    const dx = e.clientX - rect.left - rect.width / 2;
+    const dy = e.clientY - rect.top - rect.height / 2;
+    let angle = Math.atan2(dx, -dy) * (180 / Math.PI);
+    if (angle < 0) angle += 360;
+    let accum = 0;
+    const { entries, totalSeconds } = currentChartData;
+    const hovered = entries.find((entry) => {
+        accum += (entry.seconds / totalSeconds) * 360;
+        return angle < accum;
+    });
+    if (hovered) highlightPieSite(hovered.hostname);
+});
+
+chartEl.addEventListener('mouseleave', clearPieHighlight);
 
 function renderFooter(summary) {
     footerEl.textContent = `${summary.limitedSitesCount} limited sites, ${summary.blockedSitesCount} blocked sites`;

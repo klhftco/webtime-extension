@@ -355,7 +355,7 @@ function renderWeeklyUsage(weeklyUsage) {
             const segmentsHtml = bar.segments
                 .map((segment) => {
                     const height = totalSeconds === 0 ? 0 : (segment.seconds / totalSeconds) * 100;
-                    return `<span class="weekly-bar__segment" style="height:${height}%;background:${segment.color}" title="${segment.siteKey}: ${formatSeconds(segment.seconds)}"></span>`;
+                    return `<span class="weekly-bar__segment" data-site-key="${segment.siteKey}" style="height:${height}%;background:${segment.color}" title="${segment.siteKey}: ${formatSeconds(segment.seconds)}"></span>`;
                 })
                 .join('');
 
@@ -381,6 +381,7 @@ function renderWeeklyUsage(weeklyUsage) {
 
     renderWeeklyDetail(weeklyUsage);
     renderWeeklyPickups(weeklyUsage.pickups);
+    attachChartListHover(weeklyChartEl, weeklyDetailListEl);
 }
 
 function renderWeeklyDetail(weeklyUsage) {
@@ -394,7 +395,7 @@ function renderWeeklyDetail(weeklyUsage) {
         clearWeeklyPinEl.value = '';
         weeklyDetailListEl.innerHTML = weeklyUsage.defaultList
             .map((entry) => `
-                <li class="weekly-detail__item">
+                <li class="weekly-detail__item" data-site-key="${entry.siteKey}">
                     <span class="weekly-detail__site">
                         ${renderDetailSwatch(colorMap.get(entry.siteKey))}
                         <span>${entry.siteKey}</span>
@@ -418,7 +419,7 @@ function renderWeeklyDetail(weeklyUsage) {
     togglePinField(clearWeeklyPinFieldEl, Boolean(currentSettings?.hasPin));
     weeklyDetailListEl.innerHTML = selectedBar.detailEntries
         .map((entry) => `
-            <li class="weekly-detail__item">
+            <li class="weekly-detail__item" data-site-key="${entry.siteKey}">
                 <span class="weekly-detail__site">
                     ${renderDetailSwatch(colorMap.get(entry.siteKey))}
                     <span>${entry.siteKey}</span>
@@ -458,7 +459,7 @@ function renderWeeklyPickups(pickups) {
             const segmentsHtml = segments
                 .map((segment) => {
                     const segmentHeight = total === 0 ? 0 : (segment.count / total) * 100;
-                    return `<span class="weekly-bar__segment" style="height:${segmentHeight}%;background:${segment.color}" title="${segment.siteKey}: ${segment.count}"></span>`;
+                    return `<span class="weekly-bar__segment" data-site-key="${segment.siteKey}" style="height:${segmentHeight}%;background:${segment.color}" title="${segment.siteKey}: ${segment.count}"></span>`;
                 })
                 .join('');
             return `
@@ -482,6 +483,7 @@ function renderWeeklyPickups(pickups) {
     });
 
     renderPickupList(pickups, pickupsLegendMap);
+    attachChartListHover(weeklyPickupsChartEl, weeklyPickupsListEl);
 }
 
 function renderPickupList(pickups, pickupsLegendMap) {
@@ -493,7 +495,7 @@ function renderPickupList(pickups, pickupsLegendMap) {
         weeklyPickupsListEl.innerHTML = pickups.topSites.length
             ? pickups.topSites
             .map((entry) => `
-                <li class="weekly-detail__item">
+                <li class="weekly-detail__item" data-site-key="${entry.siteKey}">
                     <span class="weekly-detail__site">
                         ${renderDetailSwatch(pickupsLegendMap.get(entry.siteKey))}
                         <span>${entry.siteKey}</span>
@@ -518,7 +520,7 @@ function renderPickupList(pickups, pickupsLegendMap) {
     weeklyPickupsListEl.innerHTML = selected.detailEntries.length
         ? selected.detailEntries
             .map((entry) => `
-                <li class="weekly-detail__item">
+                <li class="weekly-detail__item" data-site-key="${entry.siteKey}">
                     <span class="weekly-detail__site">
                         ${renderDetailSwatch(pickupsLegendMap.get(entry.siteKey))}
                         <span>${entry.siteKey}</span>
@@ -528,4 +530,31 @@ function renderPickupList(pickups, pickupsLegendMap) {
             `)
             .join('')
         : '<li class="weekly-detail__empty">No pickups for this day.</li>';
+}
+
+function attachChartListHover(chartContainerEl, listEl) {
+    chartContainerEl.querySelectorAll('.weekly-bar__segment').forEach((segEl) => {
+        segEl.addEventListener('mouseenter', () => highlightSiteKey(chartContainerEl, listEl, segEl.dataset.siteKey));
+        segEl.addEventListener('mouseleave', () => clearChartHighlight(chartContainerEl, listEl));
+    });
+    listEl.querySelectorAll('.weekly-detail__item[data-site-key]').forEach((itemEl) => {
+        itemEl.addEventListener('mouseenter', () => highlightSiteKey(chartContainerEl, listEl, itemEl.dataset.siteKey));
+        itemEl.addEventListener('mouseleave', () => clearChartHighlight(chartContainerEl, listEl));
+    });
+}
+
+function highlightSiteKey(chartContainerEl, listEl, siteKey) {
+    chartContainerEl.querySelectorAll('.weekly-bar__segment').forEach((el) => {
+        el.classList.toggle('is-dimmed', el.dataset.siteKey !== siteKey);
+    });
+    listEl.querySelectorAll('.weekly-detail__item[data-site-key]').forEach((el) => {
+        const match = el.dataset.siteKey === siteKey;
+        el.classList.toggle('is-dimmed', !match);
+        el.classList.toggle('is-highlighted', match);
+    });
+}
+
+function clearChartHighlight(chartContainerEl, listEl) {
+    chartContainerEl.querySelectorAll('.weekly-bar__segment').forEach((el) => el.classList.remove('is-dimmed'));
+    listEl.querySelectorAll('.weekly-detail__item').forEach((el) => el.classList.remove('is-dimmed', 'is-highlighted'));
 }

@@ -174,6 +174,31 @@
                 </div>
 
                 <p data-role="usage-status" class="save-status"></p>
+
+                <div class="field field--group">
+                    <span>Limit configuration</span>
+                    <p>Export your blocked sites and limits as a JSON file, or import from a previously exported file. Importing replaces all current blocked sites and limits.</p>
+                </div>
+
+                <div class="field field--group">
+                    <span>Export limits</span>
+                    <button type="button" data-role="limits-export">Download limits JSON</button>
+                </div>
+
+                <div class="field field--group">
+                    <span>Import limits</span>
+                    <input type="file" name="limitsImportFile" accept=".json">
+                    <div class="field" data-role="limits-import-pin-field">
+                        <label class="field">
+                            <span>PIN to confirm</span>
+                            <input type="password" name="limitsImportPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                        <p class="pin-status" data-role="limits-import-pin-status">No PIN set.</p>
+                    </div>
+                    <button type="button" data-role="limits-import" disabled>Import limits</button>
+                </div>
+
+                <p data-role="limits-status" class="save-status"></p>
             </form>
         </section>
 

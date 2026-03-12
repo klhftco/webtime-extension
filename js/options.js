@@ -25,6 +25,13 @@ const usagePinEl = document.querySelector('[name="usagePin"]');
 const clearUsageConfirmEl = document.querySelector('[name="clearUsageConfirm"]');
 const usagePinFieldEl = document.querySelector('[data-role="usage-pin-field"]');
 const usagePinStatusEl = document.querySelector('[data-role="usage-pin-status"]');
+const limitsExportButtonEl = document.querySelector('[data-role="limits-export"]');
+const limitsImportButtonEl = document.querySelector('[data-role="limits-import"]');
+const limitsImportFileEl = document.querySelector('[name="limitsImportFile"]');
+const limitsImportPinEl = document.querySelector('[name="limitsImportPin"]');
+const limitsImportPinFieldEl = document.querySelector('[data-role="limits-import-pin-field"]');
+const limitsImportPinStatusEl = document.querySelector('[data-role="limits-import-pin-status"]');
+const limitsStatusEl = document.querySelector('[data-role="limits-status"]');
 const experimentalFormEl = document.querySelector('[data-role="experimental-form"]');
 const trackingModeEl = document.querySelector('[name="trackingMode"]');
 const experimentalPinEl = document.querySelector('[name="experimentalPin"]');
@@ -159,6 +166,74 @@ usageClearButtonEl.addEventListener('click', async () => {
     await refreshWeeklyUsage();
 });
 
+limitsExportButtonEl.addEventListener('click', () => {
+    if (!currentSettings) return;
+    const payload = {
+        blockedSites: currentSettings.blockedSites,
+        siteLimitsByHostname: currentSettings.siteLimitsByHostname,
+        blockedCategories: currentSettings.blockedCategories,
+        categoryLimitsById: currentSettings.categoryLimitsById,
+        exportedAt: new Date().toISOString()
+    };
+    const filename = `webtime-limits-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    limitsStatusEl.textContent = 'Limits exported.';
+});
+
+limitsImportFileEl.addEventListener('change', () => {
+    limitsImportButtonEl.disabled = !limitsImportFileEl.files.length;
+    limitsStatusEl.textContent = '';
+});
+
+limitsImportButtonEl.addEventListener('click', async () => {
+    const file = limitsImportFileEl.files[0];
+    if (!file) return;
+
+    let parsed;
+    try {
+        parsed = JSON.parse(await file.text());
+    } catch {
+        limitsStatusEl.textContent = 'Invalid JSON file.';
+        return;
+    }
+
+    if (!Array.isArray(parsed.blockedSites)) {
+        limitsStatusEl.textContent = 'Invalid limits file.';
+        return;
+    }
+
+    limitsStatusEl.textContent = 'Importing...';
+    const response = await chrome.runtime.sendMessage({
+        type: 'webtime:save-settings',
+        payload: buildSettingsPayload({
+            blockedSites: parsed.blockedSites.join('\n'),
+            siteLimitsText: serializeLimitMap(parsed.siteLimitsByHostname || {}),
+            blockedCategories: (parsed.blockedCategories || []).join('\n'),
+            categoryLimitsText: serializeLimitMap(parsed.categoryLimitsById || {}),
+            pinAttempt: limitsImportPinEl.value
+        })
+    });
+
+    if (response?.error) {
+        limitsStatusEl.textContent = response.error;
+        return;
+    }
+
+    renderSettings(response.settings);
+    limitsStatusEl.textContent = 'Limits imported.';
+    limitsImportPinEl.value = '';
+    limitsImportFileEl.value = '';
+    limitsImportButtonEl.disabled = true;
+});
+
 experimentalFormEl.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -285,6 +360,8 @@ function renderSettings(settings) {
     togglePinField(currentPinFieldEl, settings.hasPin);
     togglePinField(usagePinFieldEl, settings.hasPin);
     usagePinStatusEl.hidden = settings.hasPin;
+    togglePinField(limitsImportPinFieldEl, settings.hasPin);
+    limitsImportPinStatusEl.hidden = settings.hasPin;
     togglePinField(experimentalPinFieldEl, settings.hasPin);
     experimentalPinStatusEl.hidden = settings.hasPin;
     if (!settings.hasPin) {
@@ -292,6 +369,7 @@ function renderSettings(settings) {
         experimentalPinEl.value = '';
         pinAttemptEl.value = '';
         currentPinEl.value = '';
+        limitsImportPinEl.value = '';
     }
     trackingModeEl.value = settings.trackingMode || 'focused';
 }

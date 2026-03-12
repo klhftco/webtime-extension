@@ -72,7 +72,7 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 ## v3 Candidates
 - online site-grouping for limits
 - picture in picture handling
-- import/export limit configurations
+- ~~import/export limit configurations~~ (shipped: export/import buttons in the Usage data tab)
 - scheduled limit controls
 
 ## Design Principles

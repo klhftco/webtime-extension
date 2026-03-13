@@ -26,6 +26,7 @@
   },
   "permissions": [
     "alarms",
+    "idle",
     "storage",
     "tabs"
   ],

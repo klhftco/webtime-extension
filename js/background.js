@@ -33,6 +33,14 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
     await syncActiveSessions();
 });
 
+chrome.idle.onStateChanged.addListener(async (newState) => {
+    if (newState === 'locked') {
+        await flushAllSessions(false);
+    } else if (newState === 'active') {
+        await syncActiveSessions();
+    }
+});
+
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.active && tab.windowId >= 0 && tab.url) {
         await syncActiveSessions(tabId);
@@ -617,7 +625,8 @@ async function flushSession(windowId, keepActive) {
         return;
     }
 
-    const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+    const rawElapsed = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+    const elapsedSeconds = rawElapsed <= 90 ? rawElapsed : 0; // discard implausibly long intervals (system was likely asleep)
     if (elapsedSeconds > 0) {
         await addUsage(session.siteKey, elapsedSeconds);
     }

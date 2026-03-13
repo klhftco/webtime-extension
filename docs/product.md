@@ -7,6 +7,7 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 ## v0 Scope
 
 - Track time by normalized site key for the focused tab of the active window.
+- Pause tracking when the screen is locked or the device is suspended (e.g. lid close, sleep); resume only when the screen is unlocked and the user is active again. Do not pause tracking solely because the user's mouse or keyboard has been idle — passive consumption such as reading or watching should still count.
 - Show current-site status in the popup.
 - Show popup left and right controls that move the usage visualization by day.
 - Show a popup pie-chart breakdown of the selected day's tracked time by site key.
@@ -61,7 +62,7 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
   - ~~allow clearing data by day~~ (shipped in v0: "Clear day data" button in weekly usage)
   - require the settings PIN if set (or slow-mode cooldown if no PIN)
 - Add a small test harness for pure helper functions.
-- Replace approximate active-tab tracking with richer idle detection if needed.
+- Replace approximate active-tab tracking with richer activity detection if needed (e.g. detecting attention loss beyond screen lock).
 - Expand tracking beyond the focused tab of the active window if the product model becomes clear:
   - expose an experimental “visible windows” mode so every non-minimized window’s active tab counts (focused mode remains the default).
   - in visible-windows mode treat each normalized hostname as a single tracked identity even if it appears in multiple windows/tabs.

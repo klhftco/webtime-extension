@@ -73,6 +73,7 @@
 - `storage`: persist settings and local usage.
 - `tabs`: inspect the active tab in the active window.
 - `alarms`: periodically flush tracked time in MV3.
+- `idle`: detect screen lock and system suspend so tracking is paused while the device is not in active use.
 - Host permissions: required for content-script evaluation and redirect enforcement on web pages.
 
 ## Key Tradeoffs

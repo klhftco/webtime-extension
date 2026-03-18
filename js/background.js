@@ -99,7 +99,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message?.type === 'webtime:get-weekly-usage') {
-        getWeeklyUsage()
+        getWeeklyUsage(message.weekOffset ?? 0)
             .then((weeklyUsage) => sendResponse({ weeklyUsage }))
             .catch((error) => sendResponse({ error: error.message }));
         return true;
@@ -387,14 +387,14 @@ function buildChartData(usageByHostname, maxEntries) {
     };
 }
 
-async function getWeeklyUsage() {
+async function getWeeklyUsage(weekOffset = 0) {
     const store = await chrome.storage.local.get(STORAGE_KEYS.local);
     const usageByDay = store.usageByDay || {};
     const pickupsByDay = store.pickupsByDay || {};
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const sunday = new Date(today);
-    sunday.setDate(today.getDate() - today.getDay());
+    sunday.setDate(today.getDate() - today.getDay() + weekOffset * 7);
     const weeklyDayKeys = Array.from({ length: 7 }, (_value, index) => {
         const date = new Date(sunday);
         date.setDate(sunday.getDate() + index);
@@ -502,11 +502,28 @@ async function getWeeklyUsage() {
             totalSeconds: seconds
         }));
 
+    const saturdayDate = new Date(sunday);
+    saturdayDate.setDate(sunday.getDate() + 6);
+    const weekLabel = `${sunday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${saturdayDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+
+    const prevSunday = new Date(sunday);
+    prevSunday.setDate(sunday.getDate() - 7);
+    const prevWeekBars = Array.from({ length: 7 }, (_value, index) => {
+        const date = new Date(prevSunday);
+        date.setDate(prevSunday.getDate() + index);
+        const dayKey = getDateKeyFromDate(date);
+        const usage = normalizeUsageMap(usageByDay[dayKey] || {});
+        const totalSeconds = Object.values(usage).reduce((sum, s) => sum + s, 0);
+        return { dayKey, totalSeconds };
+    });
+
     return {
         bars,
         legend,
         weekTotalSeconds,
         defaultList,
+        weekLabel,
+        prevWeekBars,
         pickups: {
             daily: pickupDaily,
             total: pickupTotal,

@@ -75,6 +75,8 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - picture in picture handling
 - ~~import/export limit configurations~~ (shipped: export/import buttons in the Usage data tab)
 - scheduled limit controls
+- time scrollable weekly overviews
+- last week's data projected onto the current week's
 
 ## Design Principles
 

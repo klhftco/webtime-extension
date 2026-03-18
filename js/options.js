@@ -40,6 +40,10 @@ const experimentalPinFieldEl = document.querySelector('[data-role="experimental-
 const experimentalPinStatusEl = document.querySelector('[data-role="experimental-pin-status"]');
 const weeklyChartEl = document.querySelector('[data-role="weekly-chart"]');
 const weeklyTotalEl = document.querySelector('[data-role="weekly-total"]');
+const weeklyWeekLabelEl = document.querySelector('[data-role="weekly-week-label"]');
+const weeklyPrevButtonEl = document.querySelector('[data-role="weekly-prev"]');
+const weeklyNextButtonEl = document.querySelector('[data-role="weekly-next"]');
+const weeklyPrevLegendEl = document.querySelector('[data-role="weekly-prev-legend"]');
 const weeklyDetailTitleEl = document.querySelector('[data-role="weekly-detail-title"]');
 const weeklyDetailListEl = document.querySelector('[data-role="weekly-detail-list"]');
 const clearWeeklySelectionEl = document.querySelector('[data-role="clear-weekly-selection"]');
@@ -58,6 +62,7 @@ const panelEls = Array.from(document.querySelectorAll('[data-role="panel"]'));
 let weeklyUsageState = null;
 let selectedDayKey = null;
 let currentSettings = null;
+let weekOffset = 0;
 
 bootstrapOptions();
 
@@ -264,13 +269,26 @@ clearUsageConfirmEl.addEventListener('input', () => {
 });
 
 async function refreshWeeklyUsage() {
-    const weeklyResponse = await chrome.runtime.sendMessage({ type: 'webtime:get-weekly-usage' });
+    const weeklyResponse = await chrome.runtime.sendMessage({ type: 'webtime:get-weekly-usage', weekOffset });
     if (!weeklyResponse?.error) {
         weeklyUsageState = weeklyResponse.weeklyUsage;
         selectedDayKey = null;
         renderWeeklyUsage(weeklyUsageState);
     }
 }
+
+weeklyPrevButtonEl.addEventListener('click', () => {
+    weekOffset--;
+    selectedDayKey = null;
+    refreshWeeklyUsage();
+});
+
+weeklyNextButtonEl.addEventListener('click', () => {
+    if (weekOffset >= 0) return;
+    weekOffset++;
+    selectedDayKey = null;
+    refreshWeeklyUsage();
+});
 
 tabEls.forEach((tabEl) => {
     tabEl.addEventListener('click', () => {
@@ -322,7 +340,7 @@ if (clearPickupsSelectionEl) {
 async function bootstrapOptions() {
     const [settingsResponse, weeklyResponse] = await Promise.all([
         chrome.runtime.sendMessage({ type: 'webtime:get-settings' }),
-        chrome.runtime.sendMessage({ type: 'webtime:get-weekly-usage' }),
+        chrome.runtime.sendMessage({ type: 'webtime:get-weekly-usage', weekOffset }),
         chrome.runtime.sendMessage({ type: 'webtime:settings-opened' })
     ]);
 
@@ -411,9 +429,17 @@ function togglePinField(element, show) {
 }
 
 function renderWeeklyUsage(weeklyUsage) {
+    if (weeklyWeekLabelEl) {
+        weeklyWeekLabelEl.textContent = weeklyUsage?.weekLabel || 'This week';
+    }
+    if (weeklyNextButtonEl) {
+        weeklyNextButtonEl.disabled = weekOffset >= 0;
+    }
+
     if (!weeklyUsage?.bars?.length) {
         weeklyChartEl.innerHTML = '';
         weeklyDetailListEl.innerHTML = '';
+        if (weeklyPrevLegendEl) weeklyPrevLegendEl.hidden = true;
         if (weeklyPickupsChartEl) {
             weeklyPickupsChartEl.innerHTML = '';
         }
@@ -423,11 +449,18 @@ function renderWeeklyUsage(weeklyUsage) {
         return;
     }
 
-    const maxSeconds = Math.max(...weeklyUsage.bars.map((bar) => bar.totalSeconds), 1);
+    const hasPrevData = weeklyUsage.prevWeekBars?.some((b) => b.totalSeconds > 0);
+    if (weeklyPrevLegendEl) weeklyPrevLegendEl.hidden = !hasPrevData;
+
+    const maxSeconds = Math.max(
+        ...weeklyUsage.bars.map((bar) => bar.totalSeconds),
+        ...(weeklyUsage.prevWeekBars?.map((b) => b.totalSeconds) ?? []),
+        1
+    );
     weeklyTotalEl.textContent = `${formatSeconds(weeklyUsage.weekTotalSeconds)} total in browser this week`;
 
     weeklyChartEl.innerHTML = weeklyUsage.bars
-        .map((bar) => {
+        .map((bar, index) => {
             const totalSeconds = bar.segments.reduce((sum, segment) => sum + segment.seconds, 0);
             const stackHeight = totalSeconds === 0 ? 0 : Math.max(2, (totalSeconds / maxSeconds) * 90);
             const segmentsHtml = bar.segments
@@ -437,10 +470,19 @@ function renderWeeklyUsage(weeklyUsage) {
                 })
                 .join('');
 
+            const prevBar = weeklyUsage.prevWeekBars?.[index];
+            const prevStackHeight = prevBar && prevBar.totalSeconds > 0
+                ? Math.max(2, (prevBar.totalSeconds / maxSeconds) * 90)
+                : 0;
+            const prevStackHtml = prevStackHeight > 0
+                ? `<div class="weekly-bar__prev-stack" style="height:${prevStackHeight}%" title="Prior week: ${formatSeconds(prevBar.totalSeconds)}"></div>`
+                : '';
+
             return `
                 <article class="weekly-bar ${selectedDayKey === bar.dayKey ? 'is-selected' : ''}" data-day-key="${bar.dayKey}">
                     <div class="weekly-bar__frame">
                         <div class="weekly-bar__stack" style="height:${stackHeight}%">${segmentsHtml}</div>
+                        ${prevStackHtml}
                     </div>
                     <p class="weekly-bar__total">${formatMinutes(bar.totalMinutes)}</p>
                     <p class="weekly-bar__label">${bar.label}</p>

@@ -137,9 +137,48 @@ textarea::placeholder {
     padding: 1.5rem;
 }
 
+.weekly-card__nav {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.weekly-card__nav .weekly-card__title {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.weekly-card__nav-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.weekly-card__nav-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 .weekly-card__total {
     margin: 0 0 1rem;
     color: var(--muted);
+}
+
+.weekly-chart__prev-legend {
+    margin: 0 0 0.5rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    opacity: 0.7;
 }
 
 .weekly-detail--pickups {
@@ -227,10 +266,18 @@ textarea::placeholder {
     height: 220px;
     display: flex;
     align-items: flex-end;
+    gap: 3px;
+}
+
+.weekly-bar__prev-stack {
+    flex: 1;
+    border-radius: 0.6rem;
+    background: rgba(150, 130, 115, 0.35);
+    pointer-events: none;
 }
 
 .weekly-bar__stack {
-    width: 100%;
+    flex: 1;
     display: flex;
     flex-direction: column-reverse;
     justify-content: flex-start;

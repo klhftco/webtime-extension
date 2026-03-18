@@ -66,9 +66,14 @@
 
         <section class="tab-panel" data-role="panel" data-panel="weekly">
             <div class="weekly-card">
-                <p class="weekly-card__title">Last 7 days</p>
+                <div class="weekly-card__nav">
+                    <button type="button" class="weekly-card__nav-btn" data-role="weekly-prev" aria-label="Previous week">&larr;</button>
+                    <p class="weekly-card__title" data-role="weekly-week-label">This week</p>
+                    <button type="button" class="weekly-card__nav-btn" data-role="weekly-next" aria-label="Next week" disabled>&rarr;</button>
+                </div>
                 <p class="weekly-card__total" data-role="weekly-total">Loading...</p>
                 <div class="weekly-chart" data-role="weekly-chart"></div>
+                <p class="weekly-chart__prev-legend" data-role="weekly-prev-legend">— prior week</p>
                 <div class="weekly-detail">
                     <div class="weekly-detail__header">
                         <p class="weekly-detail__title" data-role="weekly-detail-title">Top 30 by weekly total</p>

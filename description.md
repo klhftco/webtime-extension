@@ -7,7 +7,7 @@ Daily limits & site blocking
 Set per-site daily time limits. Add sites to a block list for immediate enforcement. Schedule block windows to restrict sites during specific hours. When a site hits its limit or block window, it is replaced with a blocked screen.
 
 Usage data
-View a daily pie-chart breakdown in the popup and a full weekly stacked-bar chart in settings. Browse up to 4 weeks of history. Export your usage data as JSON, or clear it entirely with a confirmation phrase. Clear individual days directly from the weekly view.
+View a daily pie-chart breakdown in the popup and a full weekly stacked-bar chart in settings. Scroll back through up to 4 weeks of history and compare any week against the previous week's usage. Export your usage data as JSON, or clear it entirely with a confirmation phrase. Clear individual days directly from the weekly view.
 
 Settings protection
 Protect your settings with an optional PIN or a slow-mode cooldown that requires a waiting period before changes take effect. Export and import your limits configuration as a backup.

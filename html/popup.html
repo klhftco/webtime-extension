@@ -1,20 +1,44 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <title>Chrome Extension Starter Kit</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WebTime</title>
     <link href="../css/popup.css" rel="stylesheet">
 </head>
 <body>
+    <main class="popup-shell">
+        <p class="popup-shell__eyebrow">WebTime</p>
+        <h1>Today on <span data-role="site">Loading...</span></h1>
+        <p class="popup-shell__status" data-role="status">Loading...</p>
 
-<h1>Chrome Extension Starter Kit</h1>
+        <section class="metric-grid">
+            <article class="metric-card">
+                <p class="metric-card__label">Current site</p>
+                <p class="metric-card__value" data-role="usage">--</p>
+            </article>
+            <article class="metric-card">
+                <p class="metric-card__label">Assigned limit</p>
+                <p class="metric-card__value" data-role="limit">--</p>
+            </article>
+        </section>
 
-<h2>Audible tabs</h2>
-<div class="js-tabs-audible">
-</div>
+        <section class="chart-panel">
+            <div class="chart-nav">
+                <button type="button" class="chart-nav__button" data-role="older-day" aria-label="Previous day">&larr;</button>
+                <p class="chart-nav__label" data-role="chart-day">Today</p>
+                <button type="button" class="chart-nav__button" data-role="newer-day" aria-label="Next day">&rarr;</button>
+            </div>
 
-<script src="../js/config.js"></script>
-<script src="../js/fn.js"></script>
-<script src="../js/popup.js"></script>
+            <div class="chart-panel__ring" data-role="chart" aria-hidden="true"></div>
+            <p class="chart-panel__total" data-role="total">Loading...</p>
+            <ul class="legend" data-role="legend"></ul>
+        </section>
 
+        <p class="popup-footer" data-role="footer">Loading...</p>
+    </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/popup.js"></script>
 </body>
 </html>

@@ -1,34 +1,34 @@
-# Chrome Extension Starter Kit (Manifest V3)
+# WebTime
 
-A minimal template for building Chrome extensions with Manifest V3.
+Manifest V3 Chrome extension scaffold with tracking, per-site limits, and redirect-based blocking in progress.
 
-## Loading the extension
+## Current implementation
 
-1. Go to `chrome://extensions` and enable **Developer mode**.
-2. Click **Load unpacked** and select this project folder.
-3. After making changes, click the refresh icon on the extension's card.
+- Track time for the focused `http` or `https` tab of the active window.
+- Store today's usage by normalized site key in extension storage.
+- Show the current site key, tracked time, assigned limit, and a pie-chart breakdown in the popup.
+- Manage blocked sites and per-site daily limits in the options page, including path-specific entries such as `youtube.com/shorts`.
+- Redirect blocked sites to an internal blocked page when they reach their assigned limit.
+- Treat blocked-site entries as immediate `0m` limits.
 
-## Structure
+## Not implemented yet
 
-```
-manifest.json       Extension config — permissions, scripts, icons
-js/
-  config.js         Shared constants (DEVELOPMENT_MODE, DOMAINS_FORBIDDEN)
-  fn.js             Shared helpers (dcl, getAllTabs, getAllTabsAudible)
-  background.js     Service worker — no DOM access, runs in the background
-  content.js        Injected into matching pages — has full DOM access
-  popup.js          Runs inside the toolbar popup
-  options.js        Runs inside the options page
-html/
-  popup.html        Toolbar popup UI
-  options.html      Options page UI
-css/                Stylesheets for popup, options, and content scripts
-icon/               Extension icons (16–128px)
-```
+- Scheduled blocked windows
+- Cooldown-protected settings changes
+- Site-group limits
 
-## Notes
+## Development
 
-- `DEVELOPMENT_MODE` is `true` when loaded unpacked. Use `dcl()` instead of `console.log()` — it auto-silences in production.
-- Background service worker logs: **Inspect views → service worker** on the extensions page.
-- Content script logs: DevTools console of the injected page.
-- To change which pages the content script runs on, edit `content_scripts.matches` in `manifest.json`.
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Load this repository as an unpacked extension.
+4. Use `npm run check` for lightweight manifest/package validation.
+
+## Docs
+
+- `AGENTS.md`
+- `docs/development.md`
+- `docs/deployment.md`
+- `docs/product.md`
+- `docs/architecture.md`
+- `docs/acceptance-checklist.md`

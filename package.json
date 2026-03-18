@@ -1,9 +1,12 @@
 {
-  "name": "chrome-extension-starter-pack",
-  "version": "1.0.0",
-  "description": "",
+  "name": "webtime-extension",
+  "version": "0.1.0",
+  "description": "Manifest v3 Chrome extension scaffold for website time management controls.",
   "private": true,
-  "homepage": "",
+  "scripts": {
+    "check": "node -e \"const fs=require('fs'); JSON.parse(fs.readFileSync('manifest.json','utf8')); JSON.parse(fs.readFileSync('package.json','utf8')); console.log('manifest/package json ok')\"",
+    "start:notes": "node -e \"console.log('Load the unpacked extension from this repo in chrome://extensions and use docs/acceptance-checklist.md for manual verification.')\""
+  },
   "devDependencies": {
     "svgexport": "^0.2.8"
   }

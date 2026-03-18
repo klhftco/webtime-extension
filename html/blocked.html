@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WebTime Blocked</title>
+    <link href="../css/blocked.css" rel="stylesheet">
+</head>
+<body>
+    <main class="blocked-shell">
+        <p class="blocked-shell__eyebrow">WebTime</p>
+        <h1>This site is blocked</h1>
+        <p class="blocked-shell__body" data-role="message">Loading block reason...</p>
+
+        <section class="blocked-meta">
+            <p><span>Rule</span> <strong data-role="site">--</strong></p>
+            <p><span>Limit</span> <strong data-role="limit">--</strong></p>
+        </section>
+
+        <div class="blocked-actions">
+            <button type="button" data-role="open-options">Open settings</button>
+            <a data-role="view-target" href="#" rel="noreferrer">View original URL</a>
+        </div>
+    </main>
+
+    <script src="../js/blocked.js"></script>
+</body>
+</html>

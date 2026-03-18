@@ -1,16 +1,243 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <title>Chrome Extension Starter Kit</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WebTime Settings</title>
     <link href="../css/options.css" rel="stylesheet">
 </head>
 <body>
+    <main class="settings-shell">
+        <section class="settings-hero">
+            <p class="settings-hero__eyebrow">WebTime</p>
+            <h1>Blocked sites, limits, and usage</h1>
+            <p>Use one hostname or site path per line for blocked sites, such as <code>youtube.com</code> or <code>youtube.com/shorts</code>. Blocked sites act like a <code>0</code>-minute daily limit. For limits, enter one rule per line in the format <code>site-key minutes</code>.</p>
+        </section>
 
-<div>
-    Hi there! I'm the Options page! :)
-</div>
+        <div class="tab-row" role="tablist" aria-label="Options sections">
+            <button type="button" class="tab-row__tab is-active" data-role="tab" data-tab="settings">Settings</button>
+            <button type="button" class="tab-row__tab" data-role="tab" data-tab="weekly">Weekly usage</button>
+            <button type="button" class="tab-row__tab" data-role="tab" data-tab="protection">Protection</button>
+            <button type="button" class="tab-row__tab" data-role="tab" data-tab="usage">Usage data</button>
+            <button type="button" class="tab-row__tab" data-role="tab" data-tab="experimental">Experimental</button>
+        </div>
 
-<script src="../js/options.js"></script>
+        <section class="tab-panel is-active" data-role="panel" data-panel="settings">
+            <form data-role="settings-form" class="settings-form">
+                <label class="field">
+                    <span>Blocked sites</span>
+                    <textarea name="blockedSites" rows="10" placeholder="youtube.com&#10;youtube.com/shorts"></textarea>
+                </label>
 
+                <label class="field">
+                    <span>Per-site daily limits</span>
+                    <textarea name="siteLimits" rows="10" placeholder="youtube.com 30&#10;youtube.com/shorts 10"></textarea>
+                </label>
+
+                <label class="field">
+                    <span>Blocked categories</span>
+                    <textarea name="blockedCategories" rows="6" placeholder="adult&#10;social&#10;gaming"></textarea>
+                </label>
+
+                <label class="field">
+                    <span>Category limits (minutes)</span>
+                    <textarea name="categoryLimits" rows="6" placeholder="social 45&#10;shopping 20"></textarea>
+                </label>
+
+                <div class="field">
+                    <span>Automatic categories</span>
+                    <p>Categories are assigned automatically using the built-in list. Supported categories: <code>adult</code>, <code>social</code>, <code>shopping</code>, <code>gambling</code>, <code>sports</code>, <code>news</code>, <code>gaming</code>.</p>
+                </div>
+
+                <div class="field" data-role="settings-pin-field">
+                    <label class="field">
+                        <span>PIN to save changes</span>
+                        <input type="password" name="pinAttempt" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                    </label>
+                    <p class="pin-status" data-role="pin-status">No PIN set</p>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit">Save settings</button>
+                    <p data-role="save-status" class="save-status"></p>
+                </div>
+            </form>
+        </section>
+
+        <section class="tab-panel" data-role="panel" data-panel="weekly">
+            <div class="weekly-card">
+                <div class="weekly-card__nav">
+                    <button type="button" class="weekly-card__nav-btn" data-role="weekly-prev" aria-label="Previous week">&larr;</button>
+                    <p class="weekly-card__title" data-role="weekly-week-label">This week</p>
+                    <button type="button" class="weekly-card__nav-btn" data-role="weekly-next" aria-label="Next week" disabled>&rarr;</button>
+                </div>
+                <p class="weekly-card__total" data-role="weekly-total">Loading...</p>
+                <div class="weekly-chart" data-role="weekly-chart"></div>
+                <p class="weekly-chart__prev-legend" data-role="weekly-prev-legend">— prior week</p>
+                <div class="weekly-detail">
+                    <div class="weekly-detail__header">
+                        <p class="weekly-detail__title" data-role="weekly-detail-title">Top 30 by weekly total</p>
+                        <button type="button" class="weekly-detail__clear" data-role="clear-weekly-selection" hidden>Clear day data</button>
+                    </div>
+                    <div data-role="clear-weekly-pin-field" hidden style="display:none">
+                        <input type="password" name="clearWeeklyPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="PIN to confirm">
+                        <p class="save-status" data-role="clear-weekly-status"></p>
+                    </div>
+                    <ul class="weekly-detail__list" data-role="weekly-detail-list"></ul>
+                </div>
+
+                <div class="weekly-detail weekly-detail--pickups">
+                    <div class="weekly-detail__header">
+                        <p class="weekly-detail__title">Pickups by day</p>
+                    </div>
+                    <div class="weekly-chart weekly-chart--pickups" data-role="weekly-pickups-chart"></div>
+                    <div class="weekly-detail__header">
+                        <p class="weekly-detail__title">Top 20 pickups</p>
+                        <button type="button" class="weekly-detail__clear" data-role="clear-pickups-selection" hidden>Clear day data</button>
+                    </div>
+                    <div data-role="clear-pickups-pin-field" hidden style="display:none">
+                        <input type="password" name="clearPickupsPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="PIN to confirm">
+                        <p class="save-status" data-role="clear-pickups-status"></p>
+                    </div>
+                    <ul class="weekly-detail__list" data-role="weekly-pickups-list"></ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-panel" data-role="panel" data-panel="protection">
+            <form data-role="protection-form" class="settings-form">
+                <div class="field field--group">
+                    <span>Settings protection</span>
+                    <p>Set a 4-digit PIN to protect settings changes. If no PIN is set, you can enable a cooldown before changes are allowed. Enter the PIN in the Settings tab when saving protection changes.</p>
+
+                    <label class="field field--row">
+                        <span class="field__label">Enable cooldown when no PIN</span>
+                        <input type="checkbox" name="slowModeEnabled">
+                    </label>
+
+                    <label class="field">
+                        <span>Cooldown seconds</span>
+                        <input type="number" name="slowModeSeconds" min="0" max="3600" step="1" placeholder="60">
+                    </label>
+                </div>
+
+                <div class="field field--group">
+                    <span>Reset PIN</span>
+                    <p>Enter a new 4-digit PIN to replace the existing one.</p>
+                    <label class="field field--row">
+                        <span class="field__label">Clear existing PIN</span>
+                        <input type="checkbox" name="clearPin">
+                    </label>
+                    <div class="pin-grid">
+                        <label class="field" data-role="current-pin-field">
+                            <span>Current PIN</span>
+                            <input type="password" name="currentPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                        <label class="field">
+                            <span>New PIN</span>
+                            <input type="password" name="newPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                        <label class="field">
+                            <span>Confirm new PIN</span>
+                            <input type="password" name="confirmPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit">Save protection</button>
+                    <p data-role="protection-status" class="save-status"></p>
+                </div>
+            </form>
+        </section>
+
+        <section class="tab-panel" data-role="panel" data-panel="usage">
+            <form data-role="usage-form" class="settings-form">
+                <div class="field field--group">
+                    <span>Usage data</span>
+                    <p>Export your full usage history as a JSON file, or clear it permanently.</p>
+                </div>
+
+                <div class="field field--group">
+                    <span>Export usage</span>
+                    <p>Download a JSON file with all tracked usage.</p>
+                    <button type="button" data-role="usage-dump">Download usage JSON</button>
+                </div>
+
+                <div class="field field--group">
+                    <span>Clear usage</span>
+                    <p>Type <code>permanently clear</code> to enable clearing all usage.</p>
+                    <input type="text" name="clearUsageConfirm" placeholder="permanently clear">
+                    <div class="field" data-role="usage-pin-field">
+                        <label class="field">
+                            <span>PIN to confirm</span>
+                            <input type="password" name="usagePin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                        <p class="pin-status" data-role="usage-pin-status">No PIN set.</p>
+                    </div>
+                    <button type="button" data-role="usage-clear" disabled>Clear all usage</button>
+                </div>
+
+                <p data-role="usage-status" class="save-status"></p>
+
+                <div class="field field--group">
+                    <span>Limit configuration</span>
+                    <p>Export your blocked sites and limits as a JSON file, or import from a previously exported file. Importing replaces all current blocked sites and limits.</p>
+                </div>
+
+                <div class="field field--group">
+                    <span>Export limits</span>
+                    <button type="button" data-role="limits-export">Download limits JSON</button>
+                </div>
+
+                <div class="field field--group">
+                    <span>Import limits</span>
+                    <input type="file" name="limitsImportFile" accept=".json">
+                    <div class="field" data-role="limits-import-pin-field">
+                        <label class="field">
+                            <span>PIN to confirm</span>
+                            <input type="password" name="limitsImportPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                        </label>
+                        <p class="pin-status" data-role="limits-import-pin-status">No PIN set.</p>
+                    </div>
+                    <button type="button" data-role="limits-import" disabled>Import limits</button>
+                </div>
+
+                <p data-role="limits-status" class="save-status"></p>
+            </form>
+        </section>
+
+        <section class="tab-panel" data-role="panel" data-panel="experimental">
+            <form data-role="experimental-form" class="settings-form">
+                <div class="field field--group">
+                    <span>Tracking mode</span>
+                    <p>Focused mode tracks only the active tab of the focused window. Visible windows mode tracks the active tab in each non-minimized browser window (useful for split-screen) and only counts a normalized domain once even if it appears in multiple windows. Chrome extensions cannot detect OS desktops, so for the most accurate tracking minimize windows or switch them to an untracked page (like the New Tab page) when moving them to another desktop.</p>
+                    <label class="field">
+                        <span>Mode</span>
+                        <select name="trackingMode">
+                            <option value="focused">Focused window only</option>
+                            <option value="visible-windows">Visible windows</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="field" data-role="experimental-pin-field">
+                    <label class="field">
+                        <span>PIN to confirm</span>
+                        <input type="password" name="experimentalPin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="1234">
+                    </label>
+                    <p class="pin-status" data-role="experimental-pin-status">No PIN set.</p>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit">Save experimental</button>
+                    <p data-role="experimental-status" class="save-status"></p>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script src="../js/shared.js"></script>
+    <script src="../js/options.js"></script>
 </body>
 </html>

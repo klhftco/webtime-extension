@@ -1,0 +1,55 @@
+{
+  "adult": [
+    "pornhub.com",
+    "xvideos.com",
+    "xhamster.com",
+    "redtube.com"
+  ],
+  "adult_regex": [
+    "porn",
+    "xxx",
+    "sex",
+    "hentai"
+  ],
+  "social": [
+    "facebook.com",
+    "instagram.com",
+    "twitter.com",
+    "x.com",
+    "tiktok.com",
+    "reddit.com",
+    "discord.com"
+  ],
+  "shopping": [
+    "amazon.com",
+    "ebay.com",
+    "etsy.com",
+    "walmart.com",
+    "target.com"
+  ],
+  "gambling": [
+    "draftkings.com",
+    "fanduel.com",
+    "bet365.com",
+    "pokerstars.com",
+    "kalshi.com"
+  ],
+  "sports": [
+    "espn.com",
+    "nba.com",
+    "mlb.com",
+    "nfl.com"
+  ],
+  "news": [
+    "cnn.com",
+    "nytimes.com",
+    "bbc.com",
+    "theguardian.com"
+  ],
+  "gaming": [
+    "twitch.tv",
+    "steamcommunity.com",
+    "roblox.com",
+    "epicgames.com"
+  ]
+}

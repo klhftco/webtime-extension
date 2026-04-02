@@ -34,6 +34,9 @@ button {
     margin: 0 0 0.6rem;
     font-size: 1.55rem;
     line-height: 1.05;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .popup-shell__eyebrow,
@@ -55,6 +58,12 @@ button {
     margin-top: 0.9rem;
     margin-bottom: 0;
     text-align: center;
+}
+
+.popup-footer a {
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 .metric-grid {

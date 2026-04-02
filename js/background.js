@@ -306,6 +306,7 @@ async function getPopupData(dayOffset) {
         chartDayLabel: formatDayLabel(selectedDayOffset),
         chartDayOffset: selectedDayOffset,
         trackingMode: settings.trackingMode,
+        siteLimitsByHostname: settings.siteLimitsByHostname,
         settingsSummary: {
             blockedSitesCount: settings.blockedSites.length,
             limitedSitesCount: Object.keys(settings.siteLimitsByHostname).length

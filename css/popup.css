@@ -111,12 +111,40 @@ button {
 }
 
 .chart-panel__ring {
+    position: relative;
     width: 180px;
     height: 180px;
     margin: 0 auto 0.9rem;
     border-radius: 50%;
     border: 1px solid rgba(36, 23, 15, 0.08);
     background: linear-gradient(180deg, #f2e7d6 0%, #eadbc4 100%);
+}
+
+.chart-panel__hole {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: var(--panel);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.chart-panel__center-label {
+    margin: 0;
+    padding: 0 8px;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    text-align: center;
+    color: var(--text);
+    white-space: nowrap;
+    width: 100%;
 }
 
 .chart-panel__total {

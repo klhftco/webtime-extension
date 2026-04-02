@@ -517,6 +517,15 @@ async function getWeeklyUsage(weekOffset = 0) {
         return { dayKey, totalSeconds };
     });
 
+    const prevWeekPickupBars = Array.from({ length: 7 }, (_value, index) => {
+        const date = new Date(prevSunday);
+        date.setDate(prevSunday.getDate() + index);
+        const dayKey = getDateKeyFromDate(date);
+        const pickups = normalizePickupMap(pickupsByDay[dayKey] || {});
+        const totalCount = Object.values(pickups).reduce((sum, c) => sum + c, 0);
+        return { dayKey, totalCount };
+    });
+
     return {
         bars,
         legend,
@@ -528,7 +537,8 @@ async function getWeeklyUsage(weekOffset = 0) {
             daily: pickupDaily,
             total: pickupTotal,
             topSites: pickupTopSites,
-            legend: pickupLegend
+            legend: pickupLegend,
+            prevWeekDaily: prevWeekPickupBars
         }
     };
 }

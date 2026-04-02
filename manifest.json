@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebTime",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Track time on the focused tab of the active window and enforce per-site limits.",
   "icons": {
     "16": "icon/icon-16.png",

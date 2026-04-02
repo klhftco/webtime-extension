@@ -16,7 +16,8 @@ body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Inter, system-ui, sans-serif;
+    font-weight: 500;
     color: var(--text);
     background:
         radial-gradient(circle at top left, rgba(29, 107, 87, 0.14), transparent 32%),

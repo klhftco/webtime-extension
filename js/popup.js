@@ -5,6 +5,7 @@ const siteEl = document.querySelector('[data-role="site"]');
 const usageEl = document.querySelector('[data-role="usage"]');
 const limitEl = document.querySelector('[data-role="limit"]');
 const chartEl = document.querySelector('[data-role="chart"]');
+const chartCenterEl = document.querySelector('[data-role="chart-center"]');
 const legendEl = document.querySelector('[data-role="legend"]');
 const totalEl = document.querySelector('[data-role="total"]');
 const footerEl = document.querySelector('[data-role="footer"]');
@@ -108,12 +109,18 @@ function highlightPieSite(hostname) {
         itemEl.classList.toggle('is-dimmed', !match);
         itemEl.classList.toggle('is-highlighted', match);
     });
+    const entry = entries.find((e) => e.hostname === hostname);
+    if (entry) {
+        const pct = Math.round((entry.seconds / totalSeconds) * 100);
+        chartCenterEl.innerHTML = `<span>${entry.hostname}</span><br><strong>${pct}%</strong>`;
+    }
 }
 
 function clearPieHighlight() {
     if (!currentChartData) return;
     chartEl.style.background = currentChartData.gradient;
     legendEl.querySelectorAll('.legend__item').forEach((el) => el.classList.remove('is-dimmed', 'is-highlighted'));
+    chartCenterEl.innerHTML = '';
 }
 
 function renderChart(chart, chartDayLabel) {

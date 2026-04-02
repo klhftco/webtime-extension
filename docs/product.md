@@ -77,6 +77,8 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - scheduled limit controls
 - time scrollable weekly overviews
 - last week's data projected onto the current week's
+- donut pie graph, add site + percentage in the middle of the donut
+
 
 ## Design Principles
 

@@ -18,7 +18,8 @@ body {
     display: grid;
     place-items: center;
     padding: 24px;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Inter, system-ui, sans-serif;
+    font-weight: 500;
     color: var(--text);
     background:
         radial-gradient(circle at top, rgba(183, 78, 39, 0.16), transparent 32%),

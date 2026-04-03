@@ -2,9 +2,11 @@
 
 const statusEl = document.querySelector('[data-role="status"]');
 const siteEl = document.querySelector('[data-role="site"]');
+const siteLabelEl = document.querySelector('[data-role="site-label"]');
 const usageEl = document.querySelector('[data-role="usage"]');
 const limitEl = document.querySelector('[data-role="limit"]');
 const chartEl = document.querySelector('[data-role="chart"]');
+const chartCenterEl = document.querySelector('[data-role="chart-center"]');
 const legendEl = document.querySelector('[data-role="legend"]');
 const totalEl = document.querySelector('[data-role="total"]');
 const footerEl = document.querySelector('[data-role="footer"]');
@@ -15,6 +17,10 @@ const newerDayEl = document.querySelector('[data-role="newer-day"]');
 let currentDayOffset = 0;
 let refreshTimer = null;
 let currentChartData = null;
+let currentSiteState = null;
+let currentTrackingMode = null;
+let siteLimitsMap = {};
+let hoveredHostname = null;
 
 bootstrapPopup();
 startLiveRefresh();
@@ -41,14 +47,25 @@ async function bootstrapPopup() {
     }
 
     currentDayOffset = response.chartDayOffset;
-    renderCurrentSite(response.currentSite, response.trackingMode);
+    siteLimitsMap = response.siteLimitsByHostname || {};
+    storeSiteState(response.currentSite, response.trackingMode);
     renderChart(response.chart, response.chartDayLabel);
     renderFooter(response.settingsSummary);
     olderDayEl.disabled = currentDayOffset <= -28;
     newerDayEl.disabled = currentDayOffset >= 0;
 }
 
+function storeSiteState(site, trackingMode) {
+    currentSiteState = site;
+    currentTrackingMode = trackingMode;
+    if (!hoveredHostname) {
+        renderCurrentSite(site, trackingMode);
+    }
+}
+
 function renderCurrentSite(site, trackingMode) {
+    siteLabelEl.textContent = 'Current site';
+
     if (!site?.isTrackable) {
         siteEl.textContent = 'Unavailable';
         usageEl.textContent = '--';
@@ -101,6 +118,7 @@ function buildPieGradient(entries, totalSeconds, highlightHostname) {
 
 function highlightPieSite(hostname) {
     if (!currentChartData) return;
+    hoveredHostname = hostname;
     const { entries, totalSeconds } = currentChartData;
     chartEl.style.background = buildPieGradient(entries, totalSeconds, hostname);
     legendEl.querySelectorAll('.legend__item').forEach((itemEl) => {
@@ -108,12 +126,31 @@ function highlightPieSite(hostname) {
         itemEl.classList.toggle('is-dimmed', !match);
         itemEl.classList.toggle('is-highlighted', match);
     });
+    const entry = entries.find((e) => e.hostname === hostname);
+    if (entry) {
+        const pct = Math.round((entry.seconds / totalSeconds) * 100);
+        chartCenterEl.innerHTML = `<span>${entry.hostname}</span><br><strong>${pct}%</strong>`;
+    }
+
+    siteEl.textContent = hostname;
+    siteLabelEl.textContent = 'Site usage';
+    usageEl.textContent = entry ? formatSeconds(entry.seconds) : '--';
+    const limit = siteLimitsMap[hostname] ?? null;
+    limitEl.textContent = limit === null ? 'None' : `${limit}m`;
 }
 
 function clearPieHighlight() {
     if (!currentChartData) return;
+    hoveredHostname = null;
     chartEl.style.background = currentChartData.gradient;
     legendEl.querySelectorAll('.legend__item').forEach((el) => el.classList.remove('is-dimmed', 'is-highlighted'));
+    chartCenterEl.innerHTML = '';
+    if (currentSiteState) {
+        renderCurrentSite(currentSiteState, currentTrackingMode);
+    } else {
+        siteEl.textContent = 'Loading...';
+        siteLabelEl.textContent = 'Current site';
+    }
 }
 
 function renderChart(chart, chartDayLabel) {
@@ -168,7 +205,15 @@ chartEl.addEventListener('mousemove', (e) => {
 chartEl.addEventListener('mouseleave', clearPieHighlight);
 
 function renderFooter(summary) {
-    footerEl.textContent = `${summary.limitedSitesCount} limited sites, ${summary.blockedSitesCount} blocked sites`;
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = `${summary.limitedSitesCount} limited sites, ${summary.blockedSitesCount} blocked sites`;
+    a.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.runtime.openOptionsPage();
+    });
+    footerEl.textContent = '';
+    footerEl.appendChild(a);
 }
 
 function startLiveRefresh() {
@@ -188,7 +233,13 @@ function startLiveRefresh() {
         }
 
         currentDayOffset = response.chartDayOffset;
-        renderCurrentSite(response.currentSite, response.trackingMode);
+        siteLimitsMap = response.siteLimitsByHostname || {};
+        if (hoveredHostname && response.chart?.entries?.length) {
+            const totalSeconds = response.chart.entries.reduce((sum, e) => sum + e.seconds, 0);
+            currentChartData = { ...currentChartData, entries: response.chart.entries, totalSeconds };
+            highlightPieSite(hoveredHostname);
+        }
+        storeSiteState(response.currentSite, response.trackingMode);
         olderDayEl.disabled = currentDayOffset <= -28;
         newerDayEl.disabled = currentDayOffset >= 0;
     }, 1000);

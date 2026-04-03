@@ -10,8 +10,7 @@
     <main class="settings-shell">
         <section class="settings-hero">
             <p class="settings-hero__eyebrow">WebTime</p>
-            <h1>Blocked sites, limits, and usage</h1>
-            <p>Use one hostname or site path per line for blocked sites, such as <code>youtube.com</code> or <code>youtube.com/shorts</code>. Blocked sites act like a <code>0</code>-minute daily limit. For limits, enter one rule per line in the format <code>site-key minutes</code>.</p>
+            <h1>Block sites, limits, and usage</h1>
         </section>
 
         <div class="tab-row" role="tablist" aria-label="Options sections">
@@ -24,6 +23,11 @@
 
         <section class="tab-panel is-active" data-role="panel" data-panel="settings">
             <form data-role="settings-form" class="settings-form">
+                <div class="field">
+                    <span>Instructions</span>
+                    <p>Use one hostname or site path per line for blocked sites, such as <code>youtube.com</code> or <code>youtube.com/shorts</code>. Blocked sites act like a <code>0</code>-minute daily limit. For limits, enter one rule per line in the format <code>site-key minutes</code>.</p>
+                </div>
+
                 <label class="field">
                     <span>Blocked sites</span>
                     <textarea name="blockedSites" rows="10" placeholder="youtube.com&#10;youtube.com/shorts"></textarea>
@@ -91,6 +95,7 @@
                         <p class="weekly-detail__title">Pickups by day</p>
                     </div>
                     <div class="weekly-chart weekly-chart--pickups" data-role="weekly-pickups-chart"></div>
+                    <p class="weekly-chart__prev-legend" data-role="weekly-pickups-prev-legend">— prior week</p>
                     <div class="weekly-detail__header">
                         <p class="weekly-detail__title">Top 20 pickups</p>
                         <button type="button" class="weekly-detail__clear" data-role="clear-pickups-selection" hidden>Clear day data</button>

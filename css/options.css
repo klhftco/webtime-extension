@@ -16,7 +16,8 @@ body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: Inter, system-ui, sans-serif;
+    font-weight: 500;
     color: var(--text);
     background:
         radial-gradient(circle at top left, rgba(29, 107, 87, 0.14), transparent 32%),
@@ -271,17 +272,17 @@ textarea::placeholder {
 
 .weekly-bar__prev-stack {
     flex: 1;
-    border-radius: 0.6rem;
+    border-radius: 6px;
     background: rgba(150, 130, 115, 0.35);
     pointer-events: none;
 }
 
 .weekly-bar__stack {
-    flex: 1;
+    flex: 3;
     display: flex;
     flex-direction: column-reverse;
     justify-content: flex-start;
-    border-radius: 1rem;
+    border-radius: 6px;
     overflow: hidden;
     background: rgba(255, 247, 238, 0.55);
 }

@@ -51,6 +51,7 @@ const clearWeeklyPinFieldEl = document.querySelector('[data-role="clear-weekly-p
 const clearWeeklyPinEl = document.querySelector('[name="clearWeeklyPin"]');
 const clearWeeklyStatusEl = document.querySelector('[data-role="clear-weekly-status"]');
 const weeklyPickupsChartEl = document.querySelector('[data-role="weekly-pickups-chart"]');
+const weeklyPickupsPrevLegendEl = document.querySelector('[data-role="weekly-pickups-prev-legend"]');
 const weeklyPickupsListEl = document.querySelector('[data-role="weekly-pickups-list"]');
 const clearPickupsSelectionEl = document.querySelector('[data-role="clear-pickups-selection"]');
 const clearPickupsPinFieldEl = document.querySelector('[data-role="clear-pickups-pin-field"]');
@@ -570,9 +571,12 @@ function renderWeeklyPickups(pickups) {
     }
 
     const pickupsLegendMap = new Map((pickups.legend || []).map((entry) => [entry.siteKey, entry.color]));
-    const maxCount = Math.max(...pickups.daily.map((entry) => entry.count), 1);
+    const hasPrevPickupData = pickups.prevWeekDaily?.some((d) => d.totalCount > 0);
+    if (weeklyPickupsPrevLegendEl) weeklyPickupsPrevLegendEl.hidden = !hasPrevPickupData;
+    const prevMaxCount = Math.max(...(pickups.prevWeekDaily?.map((d) => d.totalCount) ?? []), 0);
+    const maxCount = Math.max(...pickups.daily.map((entry) => entry.count), prevMaxCount, 1);
     weeklyPickupsChartEl.innerHTML = pickups.daily
-        .map((entry) => {
+        .map((entry, index) => {
             const height = entry.count === 0 ? 0 : Math.max(2, (entry.count / maxCount) * 90);
             const segments = entry.segments || [];
             const total = segments.reduce((sum, segment) => sum + segment.count, 0);
@@ -582,10 +586,18 @@ function renderWeeklyPickups(pickups) {
                     return `<span class="weekly-bar__segment" data-site-key="${segment.siteKey}" style="height:${segmentHeight}%;background:${segment.color}" title="${segment.siteKey}: ${segment.count}"></span>`;
                 })
                 .join('');
+            const prevEntry = pickups.prevWeekDaily?.[index];
+            const prevHeight = prevEntry && prevEntry.totalCount > 0
+                ? Math.max(2, (prevEntry.totalCount / maxCount) * 90)
+                : 0;
+            const prevStackHtml = prevHeight > 0
+                ? `<div class="weekly-bar__prev-stack" style="height:${prevHeight}%" title="Prior week: ${prevEntry.totalCount}"></div>`
+                : '';
             return `
                 <article class="weekly-bar ${selectedDayKey === entry.dayKey ? 'is-selected' : ''}" data-day-key="${entry.dayKey}">
                     <div class="weekly-bar__frame">
                         <div class="weekly-bar__stack" style="height:${height}%">${segmentsHtml}</div>
+                        ${prevStackHtml}
                     </div>
                     <p class="weekly-bar__total">${entry.count}</p>
                     <p class="weekly-bar__label">${entry.label}</p>

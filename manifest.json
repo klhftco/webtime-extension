@@ -26,23 +26,10 @@
   },
   "permissions": [
     "alarms",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
     "idle",
     "storage",
     "tabs"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "js/shared.js",
-        "js/content.js"
-      ],
-      "run_at": "document_idle"
-    }
   ]
 }

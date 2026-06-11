@@ -2,11 +2,59 @@
 
 importScripts('shared.js');
 
+// These Maps are the in-memory mirror of the active timing state. MV3 service
+// workers are terminated after a short idle period, so this state is also
+// persisted to chrome.storage.session (see ensureRestored/persistSessions) and
+// rehydrated on every worker restart. Without that, every restart would reset
+// each session's startedAt and silently discard the elapsed viewing time,
+// causing limits to be enforced far too late or never.
 const activeSessions = new Map();
 const hostnameSessionMap = new Map();
 const tabLastUrl = new Map();
 
+const HEARTBEAT_MINUTES = 1;
+// Discard a single flush interval longer than this as an implausible gap (the
+// device was almost certainly asleep). Sized to tolerate one throttled
+// heartbeat — Chrome can stretch alarms on battery — without counting real
+// sleep time.
+const MAX_PLAUSIBLE_INTERVAL_SECONDS = HEARTBEAT_MINUTES * 60 + 90;
+
+let restorePromise = null;
+
+async function ensureRestored() {
+    if (!restorePromise) {
+        restorePromise = (async () => {
+            const stored = await chrome.storage.session.get([
+                'activeSessions',
+                'hostnameSessionMap',
+                'tabLastUrl'
+            ]).catch(() => ({}));
+
+            for (const [windowId, session] of stored.activeSessions || []) {
+                activeSessions.set(Number(windowId), session);
+            }
+            for (const [siteKey, windowId] of stored.hostnameSessionMap || []) {
+                hostnameSessionMap.set(siteKey, Number(windowId));
+            }
+            for (const [tabId, url] of stored.tabLastUrl || []) {
+                tabLastUrl.set(Number(tabId), url);
+            }
+        })();
+    }
+
+    return restorePromise;
+}
+
+async function persistSessions() {
+    await chrome.storage.session.set({
+        activeSessions: Array.from(activeSessions.entries()),
+        hostnameSessionMap: Array.from(hostnameSessionMap.entries()),
+        tabLastUrl: Array.from(tabLastUrl.entries())
+    }).catch(() => undefined);
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
+    await ensureRestored();
     await ensureDefaults();
     await seedTabUrls();
     await syncActiveSessions();
@@ -14,6 +62,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+    await ensureRestored();
     await ensureDefaults();
     await seedTabUrls();
     await syncActiveSessions();
@@ -21,10 +70,12 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+    await ensureRestored();
     await syncActiveSessions(tabId);
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
+    await ensureRestored();
     if (windowId === chrome.windows.WINDOW_ID_NONE) {
         await flushAllSessions(false);
         return;
@@ -34,6 +85,7 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 });
 
 chrome.idle.onStateChanged.addListener(async (newState) => {
+    await ensureRestored();
     if (newState === 'locked') {
         await flushAllSessions(false);
     } else if (newState === 'active') {
@@ -42,6 +94,7 @@ chrome.idle.onStateChanged.addListener(async (newState) => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    await ensureRestored();
     if (changeInfo.url?.startsWith('http')) {
         await maybeRedirectBlockedTab(tabId, changeInfo.url);
     }
@@ -56,17 +109,20 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+    await ensureRestored();
     await flushSessionByTabId(tabId);
     tabLastUrl.delete(tabId);
+    await persistSessions();
 });
 
-chrome.alarms.create('heartbeat', { periodInMinutes: 1 });
+chrome.alarms.create('heartbeat', { periodInMinutes: HEARTBEAT_MINUTES });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name !== 'heartbeat') {
         return;
     }
 
+    await ensureRestored();
     await flushAllSessions(true);
     await syncActiveSessions();
     await syncBlockingRules();
@@ -404,6 +460,7 @@ function buildDnrRule(id, item, blockedPageBase) {
 }
 
 async function getPopupData(dayOffset) {
+    await ensureRestored();
     await flushAllSessions(true);
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     const settings = await getSettings();
@@ -731,6 +788,7 @@ async function syncWindowSession(windowId, tab, settings) {
     });
 
     hostnameSessionMap.set(siteKey, windowId);
+    await persistSessions();
 }
 
 async function flushAllSessions(keepActive) {
@@ -760,7 +818,7 @@ async function flushSession(windowId, keepActive) {
     }
 
     const rawElapsed = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
-    const elapsedSeconds = rawElapsed <= 90 ? rawElapsed : 0; // discard implausibly long intervals (system was likely asleep)
+    const elapsedSeconds = rawElapsed <= MAX_PLAUSIBLE_INTERVAL_SECONDS ? rawElapsed : 0; // discard implausibly long intervals (system was likely asleep)
     if (elapsedSeconds > 0) {
         await addUsage(session.siteKey, elapsedSeconds);
     }
@@ -774,6 +832,8 @@ async function flushSession(windowId, keepActive) {
             hostnameSessionMap.delete(session.siteKey);
         }
     }
+
+    await persistSessions();
 }
 
 async function flushSessionByTabId(tabId) {
@@ -1042,6 +1102,7 @@ async function seedTabUrls() {
             tabLastUrl.set(tab.id, tab.url || '');
         }
     });
+    await persistSessions();
 }
 
 async function handleTabNavigation(tabId, tab) {
@@ -1052,17 +1113,20 @@ async function handleTabNavigation(tabId, tab) {
     const settings = await getSettings();
     if (!(await isTrackedWindow(tab, settings))) {
         tabLastUrl.set(tabId, tab.url);
+        await persistSessions();
         return;
     }
 
     if (!tab.active) {
         tabLastUrl.set(tabId, tab.url);
+        await persistSessions();
         return;
     }
 
     const currentParsed = safeParseUrl(tab.url);
     const previousUrl = tabLastUrl.get(tabId) || '';
     tabLastUrl.set(tabId, tab.url);
+    await persistSessions();
 
     if (!currentParsed || !isTrackableUrl(currentParsed)) {
         return;

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebTime",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Track time on the focused tab of the active window and enforce per-site limits.",
   "icons": {
     "16": "icon/icon-16.png",
@@ -26,23 +26,10 @@
   },
   "permissions": [
     "alarms",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
     "idle",
     "storage",
     "tabs"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "js/shared.js",
-        "js/content.js"
-      ],
-      "run_at": "document_idle"
-    }
   ]
 }

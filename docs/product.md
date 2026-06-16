@@ -75,10 +75,21 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - picture in picture handling
 - ~~import/export limit configurations~~ (shipped: export/import buttons in the Usage data tab)
 - scheduled limit controls
-- time scrollable weekly overviews
-- last week's data projected onto the current week's
-- donut pie graph, add site + percentage in the middle of the donut
+- ~~time scrollable weekly overviews~~
+- ~~last week's data projected onto the current week's~~
+- ~~donut pie graph, add site + percentage in the middle of the donut~~
 
+## v0.1.0
+
+## v0.1.1
+
+## v0.1.2
+
+## v0.1.3
+- ~~reduced host permissions~~
+- dark mode/color scheming
+- buy me a coffee?
+- popup header gets cutoff
 
 ## Design Principles
 

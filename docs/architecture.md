@@ -76,6 +76,14 @@
 - `idle`: detect screen lock and system suspend so tracking is paused while the device is not in active use.
 - Host permissions: required for content-script evaluation and redirect enforcement on web pages.
 
+## Service Worker State Durability
+
+- The active timing state (`activeSessions`, `hostnameSessionMap`, `tabLastUrl`) lives in memory for fast access but is mirrored to `chrome.storage.session` on every mutation.
+- MV3 service workers are terminated after a short idle period; without this mirror, each restart would reset every session's `startedAt` and silently discard the elapsed viewing time, so usage would be badly under-counted and limits would be enforced far too late or never.
+- On worker restart the state is rehydrated once (`ensureRestored`) before any event handler reads it.
+- The `heartbeat` alarm (1 minute) flushes accumulated time and re-runs `syncBlockingRules`, so a tab already open past its limit is redirected within roughly one minute even with no further navigation.
+- A single flush interval longer than `MAX_PLAUSIBLE_INTERVAL_SECONDS` (one heartbeat plus margin) is discarded as a likely sleep/suspend gap. `chrome.storage.session` requires no new permission beyond `storage` and is cleared when the browser closes.
+
 ## Key Tradeoffs
 
 - Time tracking is approximate and event-driven, not perfectly continuous.

@@ -23,6 +23,7 @@ Use this list before considering a change ready.
 - Equivalent hostnames such as `www.youtube.com` and `youtube.com` resolve to the same normalized root entry.
 - A path-specific entry such as `youtube.com/shorts` is matched separately from `youtube.com`.
 - A site that exceeds its assigned per-site limit is redirected to the blocked page.
+- Time keeps accumulating for a passively-viewed tab across service-worker restarts: after sitting on a limited site (no clicks) past its limit, the site is blocked within about one heartbeat rather than allowing unbounded over-limit browsing.
 - A site on the blocked-site list behaves like a site with a `0m` limit.
 - A site key with no explicit limit and not on the blocked-site list is not blocked by the limit rule alone.
 - Protected settings changes require the configured cooldown flow.

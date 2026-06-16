@@ -2,29 +2,80 @@
 
 importScripts('shared.js');
 
+// These Maps are the in-memory mirror of the active timing state. MV3 service
+// workers are terminated after a short idle period, so this state is also
+// persisted to chrome.storage.session (see ensureRestored/persistSessions) and
+// rehydrated on every worker restart. Without that, every restart would reset
+// each session's startedAt and silently discard the elapsed viewing time,
+// causing limits to be enforced far too late or never.
 const activeSessions = new Map();
 const hostnameSessionMap = new Map();
 const tabLastUrl = new Map();
 
+const HEARTBEAT_MINUTES = 1;
+// Discard a single flush interval longer than this as an implausible gap (the
+// device was almost certainly asleep). Sized to tolerate one throttled
+// heartbeat — Chrome can stretch alarms on battery — without counting real
+// sleep time.
+const MAX_PLAUSIBLE_INTERVAL_SECONDS = HEARTBEAT_MINUTES * 60 + 90;
+
+let restorePromise = null;
+
+async function ensureRestored() {
+    if (!restorePromise) {
+        restorePromise = (async () => {
+            const stored = await chrome.storage.session.get([
+                'activeSessions',
+                'hostnameSessionMap',
+                'tabLastUrl'
+            ]).catch(() => ({}));
+
+            for (const [windowId, session] of stored.activeSessions || []) {
+                activeSessions.set(Number(windowId), session);
+            }
+            for (const [siteKey, windowId] of stored.hostnameSessionMap || []) {
+                hostnameSessionMap.set(siteKey, Number(windowId));
+            }
+            for (const [tabId, url] of stored.tabLastUrl || []) {
+                tabLastUrl.set(Number(tabId), url);
+            }
+        })();
+    }
+
+    return restorePromise;
+}
+
+async function persistSessions() {
+    await chrome.storage.session.set({
+        activeSessions: Array.from(activeSessions.entries()),
+        hostnameSessionMap: Array.from(hostnameSessionMap.entries()),
+        tabLastUrl: Array.from(tabLastUrl.entries())
+    }).catch(() => undefined);
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
+    await ensureRestored();
     await ensureDefaults();
     await seedTabUrls();
     await syncActiveSessions();
-    await refreshAllTabs();
+    await syncBlockingRules();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+    await ensureRestored();
     await ensureDefaults();
     await seedTabUrls();
     await syncActiveSessions();
-    await refreshAllTabs();
+    await syncBlockingRules();
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+    await ensureRestored();
     await syncActiveSessions(tabId);
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
+    await ensureRestored();
     if (windowId === chrome.windows.WINDOW_ID_NONE) {
         await flushAllSessions(false);
         return;
@@ -34,6 +85,7 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 });
 
 chrome.idle.onStateChanged.addListener(async (newState) => {
+    await ensureRestored();
     if (newState === 'locked') {
         await flushAllSessions(false);
     } else if (newState === 'active') {
@@ -42,9 +94,13 @@ chrome.idle.onStateChanged.addListener(async (newState) => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    await ensureRestored();
+    if (changeInfo.url?.startsWith('http')) {
+        await maybeRedirectBlockedTab(tabId, changeInfo.url);
+    }
+
     if (changeInfo.status === 'complete' && tab.active && tab.windowId >= 0 && tab.url) {
         await syncActiveSessions(tabId);
-        await pushStateToTab(tabId, tab.url);
     }
 
     if (changeInfo.url || changeInfo.status === 'complete') {
@@ -53,33 +109,29 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+    await ensureRestored();
     await flushSessionByTabId(tabId);
     tabLastUrl.delete(tabId);
+    await persistSessions();
 });
 
-chrome.alarms.create('heartbeat', { periodInMinutes: 1 });
+chrome.alarms.create('heartbeat', { periodInMinutes: HEARTBEAT_MINUTES });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name !== 'heartbeat') {
         return;
     }
 
+    await ensureRestored();
     await flushAllSessions(true);
     await syncActiveSessions();
-    await refreshAllTabs();
+    await syncBlockingRules();
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'webtime:get-popup-data') {
         getPopupData(message.dayOffset)
             .then((data) => sendResponse(data))
-            .catch((error) => sendResponse({ error: error.message }));
-        return true;
-    }
-
-    if (message?.type === 'webtime:get-site-state') {
-        getSiteState(message.url)
-            .then((state) => sendResponse(state))
             .catch((error) => sendResponse({ error: error.message }));
         return true;
     }
@@ -128,13 +180,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message?.type === 'webtime:settings-opened') {
         recordSettingsOpened()
-            .then(() => sendResponse({ ok: true }))
-            .catch((error) => sendResponse({ error: error.message }));
-        return true;
-    }
-
-    if (message?.type === 'webtime:redirect-to-blocked-page') {
-        redirectTabToBlockedPage(sender?.tab?.id, message.payload)
             .then(() => sendResponse({ ok: true }))
             .catch((error) => sendResponse({ error: error.message }));
         return true;
@@ -273,7 +318,7 @@ async function saveSettings(payload) {
         trackingMode: normalizeTrackingMode(payload?.trackingMode ?? current.trackingMode)
     };
     await chrome.storage.sync.set(settings);
-    await refreshAllTabs();
+    await syncBlockingRules();
 
     return {
         blockedSites,
@@ -287,7 +332,135 @@ async function saveSettings(payload) {
     };
 }
 
+async function maybeRedirectBlockedTab(tabId, urlString) {
+    const usageByHostname = await getTodayUsageByHostname();
+    const settings = await getSettings();
+    const categoryMap = await getCategoryMap();
+    const state = buildCurrentSite(urlString, usageByHostname, settings, categoryMap);
+
+    if (!state.shouldOverlayBlock) {
+        return;
+    }
+
+    const blockedPageBase = chrome.runtime.getURL('html/blocked.html');
+    const blockedPageUrl = new URL(blockedPageBase);
+    blockedPageUrl.searchParams.set('site', state.siteKey || '');
+    blockedPageUrl.searchParams.set('limitMinutes', String(state.limitMinutes ?? ''));
+    blockedPageUrl.searchParams.set('blocked', String(Boolean(state.isBlocked)));
+    await chrome.tabs.update(tabId, { url: blockedPageUrl.toString() }).catch(() => undefined);
+}
+
+async function syncBlockingRules() {
+    const settings = await getSettings();
+    const usageByHostname = await getTodayUsageByHostname();
+    const categoryMap = await getCategoryMap();
+    const blockedPageBase = chrome.runtime.getURL('html/blocked.html');
+    const rulesToCreate = [];
+
+    for (const siteKey of settings.blockedSites) {
+        rulesToCreate.push({ siteKey, limitMinutes: 0, isBlocked: true });
+    }
+
+    for (const [siteKey, limitMinutes] of Object.entries(settings.siteLimitsByHostname)) {
+        if (settings.blockedSites.includes(siteKey)) {
+            continue;
+        }
+        const usedMinutes = roundSecondsToMinutes(usageByHostname[siteKey] || 0);
+        if (usedMinutes >= limitMinutes) {
+            rulesToCreate.push({ siteKey, limitMinutes, isBlocked: false });
+        }
+    }
+
+    const categoryUsage = buildCategoryUsage(usageByHostname, categoryMap.siteToCategory);
+    const blockedCategorySet = new Set(settings.blockedCategories);
+
+    for (const [categoryId, limitMinutes] of Object.entries(settings.categoryLimitsById)) {
+        if (blockedCategorySet.has(categoryId)) {
+            continue;
+        }
+        const usedMinutes = roundSecondsToMinutes(categoryUsage[categoryId] || 0);
+        if (usedMinutes >= limitMinutes) {
+            blockedCategorySet.add(categoryId);
+        }
+    }
+
+    const existingSiteKeys = new Set(rulesToCreate.map((r) => r.siteKey));
+    for (const categoryId of blockedCategorySet) {
+        const isExplicitlyBlocked = settings.blockedCategories.includes(categoryId);
+        const limitMinutes = isExplicitlyBlocked ? 0 : (settings.categoryLimitsById[categoryId] ?? 0);
+
+        for (const [siteKey, cat] of Object.entries(categoryMap.siteToCategory)) {
+            if (cat === categoryId && !existingSiteKeys.has(siteKey)) {
+                rulesToCreate.push({ siteKey, limitMinutes, isBlocked: isExplicitlyBlocked });
+                existingSiteKeys.add(siteKey);
+            }
+        }
+
+        for (const rule of categoryMap.regexRules) {
+            if (rule.categoryId === categoryId) {
+                rulesToCreate.push({
+                    siteKey: rule.regex.source,
+                    limitMinutes,
+                    isBlocked: isExplicitlyBlocked,
+                    isRegex: true,
+                    regexPattern: rule.regex.source
+                });
+            }
+        }
+    }
+
+    const addRules = rulesToCreate.map((item, index) => buildDnrRule(index + 1, item, blockedPageBase));
+    const existing = await chrome.declarativeNetRequest.getDynamicRules();
+    await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: existing.map((r) => r.id),
+        addRules
+    });
+
+    const tabs = await chrome.tabs.query({});
+    await Promise.all(
+        tabs
+            .filter((tab) => typeof tab.id === 'number' && tab.url?.startsWith('http'))
+            .map(async (tab) => {
+                const state = buildCurrentSite(tab.url, usageByHostname, settings, categoryMap);
+                if (!state.shouldOverlayBlock) {
+                    return;
+                }
+                const blockedPageUrl = new URL(blockedPageBase);
+                blockedPageUrl.searchParams.set('site', state.siteKey || '');
+                blockedPageUrl.searchParams.set('limitMinutes', String(state.limitMinutes ?? ''));
+                blockedPageUrl.searchParams.set('blocked', String(Boolean(state.isBlocked)));
+                await chrome.tabs.update(tab.id, { url: blockedPageUrl.toString() }).catch(() => undefined);
+            })
+    );
+}
+
+function buildDnrRule(id, item, blockedPageBase) {
+    const { siteKey, limitMinutes, isBlocked, isRegex, regexPattern } = item;
+    const redirectUrl = `${blockedPageBase}?site=${encodeURIComponent(siteKey)}&limitMinutes=${limitMinutes}&blocked=${isBlocked}`;
+
+    let regexFilter;
+    if (isRegex) {
+        regexFilter = `(?i)^https?://[^/]*${regexPattern}[^/]*/`;
+    } else {
+        const hostname = siteKey.includes('/') ? siteKey.split('/')[0] : siteKey;
+        const pathPart = siteKey.includes('/') ? siteKey.slice(hostname.length) : '';
+        const escapedHostname = hostname.replace(/\./g, '\\.');
+        const escapedPath = pathPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        regexFilter = pathPart
+            ? `^https?://(?:[^/]*\\.)?${escapedHostname}${escapedPath}(?:[/?#].*)?$`
+            : `^https?://(?:[^/]*\\.)?${escapedHostname}(?:[/?#].*)?$`;
+    }
+
+    return {
+        id,
+        priority: 1,
+        action: { type: 'redirect', redirect: { url: redirectUrl } },
+        condition: { regexFilter, resourceTypes: ['main_frame'] }
+    };
+}
+
 async function getPopupData(dayOffset) {
+    await ensureRestored();
     await flushAllSessions(true);
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     const settings = await getSettings();
@@ -312,13 +485,6 @@ async function getPopupData(dayOffset) {
             limitedSitesCount: Object.keys(settings.siteLimitsByHostname).length
         }
     };
-}
-
-async function getSiteState(urlString) {
-    const usageByHostname = await getTodayUsageByHostname();
-    const settings = await getSettings();
-    const categoryMap = await getCategoryMap();
-    return buildCurrentSite(urlString, usageByHostname, settings, categoryMap);
 }
 
 function buildCurrentSite(urlString, usageByHostname, settings, categoryMap) {
@@ -611,7 +777,6 @@ async function syncWindowSession(windowId, tab, settings) {
     if (settings.trackingMode === 'visible-windows') {
         const owner = hostnameSessionMap.get(siteKey);
         if (owner && owner !== windowId) {
-            await pushStateToTab(tab.id, tab.url);
             return;
         }
     }
@@ -623,8 +788,7 @@ async function syncWindowSession(windowId, tab, settings) {
     });
 
     hostnameSessionMap.set(siteKey, windowId);
-
-    await pushStateToTab(tab.id, tab.url);
+    await persistSessions();
 }
 
 async function flushAllSessions(keepActive) {
@@ -654,7 +818,7 @@ async function flushSession(windowId, keepActive) {
     }
 
     const rawElapsed = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
-    const elapsedSeconds = rawElapsed <= 90 ? rawElapsed : 0; // discard implausibly long intervals (system was likely asleep)
+    const elapsedSeconds = rawElapsed <= MAX_PLAUSIBLE_INTERVAL_SECONDS ? rawElapsed : 0; // discard implausibly long intervals (system was likely asleep)
     if (elapsedSeconds > 0) {
         await addUsage(session.siteKey, elapsedSeconds);
     }
@@ -668,6 +832,8 @@ async function flushSession(windowId, keepActive) {
             hostnameSessionMap.delete(session.siteKey);
         }
     }
+
+    await persistSessions();
 }
 
 async function flushSessionByTabId(tabId) {
@@ -929,15 +1095,6 @@ function resolveCategoryId(urlOrParsed, categoryMap) {
     return null;
 }
 
-async function refreshAllTabs() {
-    const tabs = await chrome.tabs.query({});
-    await Promise.all(
-        tabs
-            .filter((tab) => typeof tab.id === 'number' && tab.url)
-            .map((tab) => pushStateToTab(tab.id, tab.url))
-    );
-}
-
 async function seedTabUrls() {
     const tabs = await chrome.tabs.query({});
     tabs.forEach((tab) => {
@@ -945,14 +1102,7 @@ async function seedTabUrls() {
             tabLastUrl.set(tab.id, tab.url || '');
         }
     });
-}
-
-async function pushStateToTab(tabId, urlString) {
-    const state = await getSiteState(urlString);
-    await chrome.tabs.sendMessage(tabId, {
-        type: 'webtime:apply-site-state',
-        payload: state
-    }).catch(() => undefined);
+    await persistSessions();
 }
 
 async function handleTabNavigation(tabId, tab) {
@@ -963,17 +1113,20 @@ async function handleTabNavigation(tabId, tab) {
     const settings = await getSettings();
     if (!(await isTrackedWindow(tab, settings))) {
         tabLastUrl.set(tabId, tab.url);
+        await persistSessions();
         return;
     }
 
     if (!tab.active) {
         tabLastUrl.set(tabId, tab.url);
+        await persistSessions();
         return;
     }
 
     const currentParsed = safeParseUrl(tab.url);
     const previousUrl = tabLastUrl.get(tabId) || '';
     tabLastUrl.set(tabId, tab.url);
+    await persistSessions();
 
     if (!currentParsed || !isTrackableUrl(currentParsed)) {
         return;
@@ -1011,20 +1164,6 @@ async function isTrackedWindow(tab, settings) {
 
     const focused = await chrome.windows.getLastFocused().catch(() => null);
     return Boolean(focused && focused.id === tab.windowId);
-}
-
-async function redirectTabToBlockedPage(tabId, payload) {
-    if (!Number.isInteger(tabId)) {
-        throw new Error('A valid tab id is required for blocked-page redirects.');
-    }
-
-    const blockedPageUrl = new URL(chrome.runtime.getURL('html/blocked.html'));
-    blockedPageUrl.searchParams.set('site', payload?.siteKey || '');
-    blockedPageUrl.searchParams.set('limitMinutes', String(payload?.limitMinutes ?? ''));
-    blockedPageUrl.searchParams.set('blocked', String(Boolean(payload?.isBlocked)));
-    blockedPageUrl.searchParams.set('target', payload?.targetUrl || '');
-
-    await chrome.tabs.update(tabId, { url: blockedPageUrl.toString() });
 }
 
 async function dumpUsage(pinAttempt) {

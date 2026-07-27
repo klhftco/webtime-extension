@@ -9,7 +9,8 @@
 - `options` page: manages blocked sites, per-site daily limits, schedules, cooldown-protected changes, and a weekly stacked-bar usage view with a selectable detail list.
   - Category settings use an offline category map bundled in the extension.
 - `blocked` page (`html/blocked.html`): explains why a site was blocked and hosts the once-a-day "One more minute" control.
-- `protect` page (`html/protect.html`): a static, platform-tabbed walkthrough for applying Chrome's `URLBlocklist` policy to `chrome://extensions`. It is documentation only — it reads `chrome.runtime.id` to fill in an `ExtensionSettings` snippet and stores the last-selected platform tab, and writes no policy and no settings. Linked from the options Protection tab and the blocked page.
+  - The `Prevent disabling` tab (`js/protect.js`) is a static, platform-tabbed walkthrough for applying Chrome's `URLBlocklist` policy to `chrome://extensions`. It is documentation only — it reads `chrome.runtime.id` to fill in an `ExtensionSettings` snippet and stores the last-selected platform tab, and writes no policy and no settings.
+  - Tabs are selectable by URL hash (`html/options.html#prevent-disabling`), which is how the blocked page deep-links into this tab. An unknown hash is ignored and leaves the default tab active.
 
 ## v0 Tracking Model
 

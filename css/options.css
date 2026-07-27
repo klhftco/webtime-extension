@@ -6,6 +6,8 @@
     --accent: #1d6b57;
     --border: #d9cbbf;
     --tab: #f5eadc;
+    --code-bg: #2b2118;
+    --code-text: #f4ece1;
 }
 
 * {
@@ -384,4 +386,204 @@ textarea::placeholder {
 
 .weekly-detail__item.is-highlighted {
     font-weight: 600;
+}
+
+/* Prevent-disabling tab. Scoped under .doc-body so the long-form styles below
+   never restyle the forms in the other tabs. */
+
+.doc-body {
+    line-height: 1.55;
+}
+
+.doc-body a {
+    color: var(--accent);
+}
+
+.doc-body pre,
+.doc-body kbd {
+    font: inherit;
+}
+
+.doc-body code {
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.4rem;
+    background: rgba(43, 33, 24, 0.08);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    word-break: break-word;
+}
+
+.doc-body kbd {
+    padding: 0.1rem 0.4rem;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 0.35rem;
+    background: #fffaf4;
+    font-size: 0.85em;
+}
+
+.doc-body [data-role='copy-inline'] {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--muted);
+}
+
+.doc-body [data-role='copy-inline'].is-copied {
+    background: rgba(29, 107, 87, 0.18);
+}
+
+.doc-section {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.doc-section h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+}
+
+.doc-section > p {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.doc-callout {
+    margin: 0;
+    padding: 0.9rem 1rem;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 0.75rem 0.75rem 0;
+    background: rgba(29, 107, 87, 0.08);
+    font-size: 0.95rem;
+}
+
+.doc-note {
+    margin: 1rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.doc-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    display: grid;
+    gap: 0.6rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.doc-list strong {
+    color: var(--text);
+}
+
+.platform-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.platform-row__tab {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.6rem 1.1rem;
+    color: var(--text);
+    background: var(--tab);
+}
+
+.platform-row__tab.is-active {
+    color: #f9f8f5;
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.platform-panel {
+    display: none;
+}
+
+.platform-panel.is-active {
+    display: block;
+}
+
+.steps {
+    margin: 0;
+    padding-left: 1.4rem;
+    display: grid;
+    gap: 1.25rem;
+}
+
+.steps h3 {
+    margin: 0 0 0.3rem;
+    font-size: 1rem;
+}
+
+.steps p {
+    margin: 0 0 0.6rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.code-block {
+    position: relative;
+    margin: 0;
+}
+
+.code-block pre {
+    margin: 0;
+    padding: 1rem;
+    border-radius: 0.9rem;
+    background: var(--code-bg);
+    color: var(--code-text);
+    overflow-x: auto;
+}
+
+.doc-body .code-block pre code {
+    padding: 0;
+    background: none;
+    color: inherit;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    white-space: pre;
+    word-break: normal;
+}
+
+.code-block__copy {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    z-index: 1;
+    border: 1px solid rgba(244, 236, 225, 0.25);
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+    color: var(--code-text);
+    background: rgba(244, 236, 225, 0.12);
+    font-size: 0.78rem;
+}
+
+.code-block__copy:hover {
+    background: rgba(244, 236, 225, 0.22);
+}
+
+.code-block__copy.is-copied {
+    color: #d8f2e6;
+    border-color: rgba(216, 242, 230, 0.5);
+}
+
+.doc-details {
+    margin-top: 1.25rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: #fffaf4;
+}
+
+.doc-details summary {
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.doc-details p {
+    margin: 0.8rem 0;
+    color: var(--muted);
+    font-size: 0.92rem;
 }

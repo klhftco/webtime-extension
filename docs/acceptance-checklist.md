@@ -45,14 +45,17 @@ Use this list before considering a change ready.
 - Usage keeps accumulating during the extra minute: the popup's today total for that site continues to rise.
 - The service worker refuses a grant for a hard-blocked site even if the request is replayed by hand from the blocked page console.
 
-## Protect Page
+## Prevent Disabling Tab
 
-- The Protection tab in options links to the protect page, and so does the blocked page.
-- The page opens with a platform tab preselected, and Windows, macOS, and Linux tabs each show complete steps.
+- The options page shows a `Prevent disabling` tab alongside the existing tabs.
+- The blocked page's "Add a speed bump" link opens the options page with that tab already active.
+- Opening `html/options.html` with no hash still lands on the Settings tab, and an unknown hash is ignored.
+- The long-form styles in that tab do not change the appearance of the Settings, Weekly usage, Protection, Usage data, or Experimental tabs.
+- The tab opens with a platform preselected, and Windows, macOS, and Linux each show complete steps.
 - The selected platform tab is remembered on reload.
 - Each code block's `Copy` button copies the full snippet.
 - The `ExtensionSettings` snippet shows this extension's real ID rather than a placeholder.
-- The page states plainly that the policy does not stop removal from the toolbar right-click menu.
+- The tab states plainly that the policy does not stop removal from the toolbar right-click menu.
 - Following the steps for the current platform makes `chrome://extensions` show Chrome's "blocked by your administrator" page, and `chrome://policy` lists `URLBlocklist` with status OK.
 - The documented undo command restores access to `chrome://extensions`.
 

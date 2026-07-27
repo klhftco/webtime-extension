@@ -293,12 +293,25 @@ weeklyNextButtonEl.addEventListener('click', () => {
 
 tabEls.forEach((tabEl) => {
     tabEl.addEventListener('click', () => {
-        const targetTab = tabEl.dataset.tab;
-
-        tabEls.forEach((button) => button.classList.toggle('is-active', button === tabEl));
-        panelEls.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.panel === targetTab));
+        activateTab(tabEl.dataset.tab);
     });
 });
+
+// The blocked page deep-links to a tab by hash (options.html#prevent-disabling).
+window.addEventListener('hashchange', () => activateTabFromHash());
+activateTabFromHash();
+
+function activateTab(targetTab) {
+    tabEls.forEach((button) => button.classList.toggle('is-active', button.dataset.tab === targetTab));
+    panelEls.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.panel === targetTab));
+}
+
+function activateTabFromHash() {
+    const targetTab = window.location.hash.replace(/^#/, '');
+    if (targetTab && panelEls.some((panel) => panel.dataset.panel === targetTab)) {
+        activateTab(targetTab);
+    }
+}
 
 clearWeeklySelectionEl.addEventListener('click', async () => {
     clearWeeklyStatusEl.textContent = 'Clearing...';

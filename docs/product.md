@@ -30,8 +30,8 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
   - Only a minute-limit overrun is extendable. Blocked-site entries and blocked categories are hard blocks and refuse the reprieve.
   - The reprieve suppresses enforcement for 60 seconds and then re-blocks; it does not clear the limit for the day.
   - Usage keeps accumulating during the reprieve, so a limited site is immediately over its limit again when it ends.
-- Ship an in-extension instruction page recommending Chrome's `URLBlocklist` policy to block `chrome://extensions`, so disabling the extension takes a deliberate detour.
-  - The page is guidance only; the extension never writes policy itself.
+- Ship an in-extension walkthrough (options `Prevent disabling` tab) recommending Chrome's `URLBlocklist` policy to block `chrome://extensions`, so disabling the extension takes a deliberate detour.
+  - The tab is guidance only; the extension never writes policy itself.
 
 ## v0 Non-goals
 
@@ -99,7 +99,7 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 
 ## v0.1.4
 - ~~"one more minute" button on the blocked page, once per site key per day (limit overruns only)~~
-- ~~instruction page for blocking `chrome://extensions` via the `URLBlocklist` Chrome policy~~
+- ~~`Prevent disabling` options tab: walkthrough for blocking `chrome://extensions` via the `URLBlocklist` Chrome policy~~
 
 ## Design Principles
 

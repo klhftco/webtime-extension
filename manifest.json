@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WebTime",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Track time on the focused tab of the active window and enforce per-site limits.",
   "icons": {
     "16": "icon/icon-16.png",
@@ -31,5 +31,11 @@
     "idle",
     "storage",
     "tabs"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["html/blocked.html"],
+      "matches": ["<all_urls>"]
+    }
   ]
 }

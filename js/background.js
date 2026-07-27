@@ -118,6 +118,15 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 chrome.alarms.create('heartbeat', { periodInMinutes: HEARTBEAT_MINUTES });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === 'grace-expiry') {
+        // Re-block as soon as the extra minute runs out instead of waiting for
+        // the next heartbeat.
+        await ensureRestored();
+        await syncBlockingRules();
+        await scheduleGraceExpiryAlarm();
+        return;
+    }
+
     if (alarm.name !== 'heartbeat') {
         return;
     }
@@ -174,6 +183,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'webtime:clear-day-usage') {
         clearDayUsage(message.dayKey, message.pinAttempt)
             .then(() => sendResponse({ ok: true }))
+            .catch((error) => sendResponse({ error: error.message }));
+        return true;
+    }
+
+    if (message?.type === 'webtime:get-grace-status') {
+        getGraceStatus(message.siteKey)
+            .then((status) => sendResponse({ status }))
+            .catch((error) => sendResponse({ error: error.message }));
+        return true;
+    }
+
+    if (message?.type === 'webtime:grant-grace') {
+        grantGrace(message.siteKey)
+            .then((status) => sendResponse({ status }))
             .catch((error) => sendResponse({ error: error.message }));
         return true;
     }
@@ -332,37 +355,195 @@ async function saveSettings(payload) {
     };
 }
 
+// Grace state lives in chrome.storage.local as
+// graceBySiteKey[siteKey] = { dayKey, expiresAt }. Entries from any day other
+// than today are pruned on read, which is what makes the allowance once-a-day.
+async function getGraceState() {
+    const store = await chrome.storage.local.get(['graceBySiteKey']);
+    const todayKey = getTodayKey();
+    const stored = store.graceBySiteKey || {};
+    const graceBySiteKey = normalizeGraceMap(stored, todayKey);
+
+    if (JSON.stringify(graceBySiteKey) !== JSON.stringify(stored)) {
+        await chrome.storage.local.set({ graceBySiteKey });
+    }
+
+    const now = Date.now();
+    const activeKeys = new Set(
+        Object.entries(graceBySiteKey)
+            .filter(([, entry]) => entry.expiresAt > now)
+            .map(([siteKey]) => siteKey)
+    );
+
+    return { graceBySiteKey, activeKeys, todayKey };
+}
+
+function normalizeGraceMap(graceMap, todayKey) {
+    return Object.entries(graceMap || {}).reduce((normalized, [siteKey, entry]) => {
+        const cleanSiteKey = normalizeSiteKey(siteKey);
+        const expiresAt = Number(entry?.expiresAt);
+
+        if (!cleanSiteKey || entry?.dayKey !== todayKey || !Number.isFinite(expiresAt)) {
+            return normalized;
+        }
+
+        normalized[cleanSiteKey] = { dayKey: todayKey, expiresAt };
+        return normalized;
+    }, {});
+}
+
+// Only a minute-limit overrun is extendable. Blocked-site and blocked-category
+// entries are hard blocks, so the button is offered but refused for them.
+function resolveGraceDenialReason(state) {
+    if (!state.isTrackable) {
+        return 'untracked';
+    }
+
+    if (state.isBlocked) {
+        return 'blocked-site';
+    }
+
+    if (state.isCategoryBlocked) {
+        return 'blocked-category';
+    }
+
+    if (!state.isOverLimit) {
+        return 'not-over-limit';
+    }
+
+    return '';
+}
+
+async function evaluateSiteKey(siteKey) {
+    const usageByHostname = await getTodayUsageByHostname();
+    const settings = await getSettings();
+    const categoryMap = await getCategoryMap();
+    return buildCurrentSite(`https://${siteKey}`, usageByHostname, settings, categoryMap, new Set());
+}
+
+async function getGraceStatus(rawSiteKey) {
+    const siteKey = normalizeSiteKey(rawSiteKey || '');
+    if (!siteKey) {
+        return buildGraceStatus({ siteKey: '', denialReason: 'untracked' });
+    }
+
+    const { graceBySiteKey } = await getGraceState();
+    const entry = graceBySiteKey[siteKey] || null;
+    const state = await evaluateSiteKey(siteKey);
+    const denialReason = entry ? 'used-today' : resolveGraceDenialReason(state);
+
+    return buildGraceStatus({ siteKey, entry, denialReason });
+}
+
+async function grantGrace(rawSiteKey) {
+    const siteKey = normalizeSiteKey(rawSiteKey || '');
+    if (!siteKey) {
+        throw new Error(GRACE_DENIAL_REASONS.untracked);
+    }
+
+    const { graceBySiteKey, todayKey } = await getGraceState();
+    if (graceBySiteKey[siteKey]) {
+        throw new Error(GRACE_DENIAL_REASONS['used-today']);
+    }
+
+    // Re-evaluate here rather than trusting the blocked page: the caller only
+    // supplies a site key, and a hard block must never be extendable.
+    const state = await evaluateSiteKey(siteKey);
+    const denialReason = resolveGraceDenialReason(state);
+    if (denialReason) {
+        throw new Error(GRACE_DENIAL_REASONS[denialReason]);
+    }
+
+    const entry = { dayKey: todayKey, expiresAt: Date.now() + GRACE_MS };
+    graceBySiteKey[siteKey] = entry;
+    await chrome.storage.local.set({ graceBySiteKey });
+    await scheduleGraceExpiryAlarm();
+    await syncBlockingRules();
+
+    return buildGraceStatus({ siteKey, entry, denialReason: '' });
+}
+
+function buildGraceStatus({ siteKey, entry = null, denialReason }) {
+    const now = Date.now();
+    return {
+        siteKey,
+        graceMinutes: GRACE_MINUTES,
+        usedToday: Boolean(entry),
+        active: Boolean(entry && entry.expiresAt > now),
+        expiresAt: entry ? entry.expiresAt : null,
+        eligible: !denialReason,
+        denialReason,
+        denialMessage: denialReason ? GRACE_DENIAL_REASONS[denialReason] : ''
+    };
+}
+
+async function scheduleGraceExpiryAlarm() {
+    const { graceBySiteKey } = await getGraceState();
+    const now = Date.now();
+    const nextExpiry = Object.values(graceBySiteKey)
+        .map((entry) => entry.expiresAt)
+        .filter((expiresAt) => expiresAt > now)
+        .sort((a, b) => a - b)[0];
+
+    if (typeof nextExpiry === 'number') {
+        chrome.alarms.create('grace-expiry', { when: nextExpiry + 1000 });
+        return;
+    }
+
+    await chrome.alarms.clear('grace-expiry').catch(() => undefined);
+}
+
 async function maybeRedirectBlockedTab(tabId, urlString) {
     const usageByHostname = await getTodayUsageByHostname();
     const settings = await getSettings();
     const categoryMap = await getCategoryMap();
-    const state = buildCurrentSite(urlString, usageByHostname, settings, categoryMap);
+    const { activeKeys } = await getGraceState();
+    const state = buildCurrentSite(urlString, usageByHostname, settings, categoryMap, activeKeys);
 
     if (!state.shouldOverlayBlock) {
         return;
     }
 
     const blockedPageBase = chrome.runtime.getURL('html/blocked.html');
-    const blockedPageUrl = new URL(blockedPageBase);
-    blockedPageUrl.searchParams.set('site', state.siteKey || '');
-    blockedPageUrl.searchParams.set('limitMinutes', String(state.limitMinutes ?? ''));
-    blockedPageUrl.searchParams.set('blocked', String(Boolean(state.isBlocked)));
-    await chrome.tabs.update(tabId, { url: blockedPageUrl.toString() }).catch(() => undefined);
+    await chrome.tabs.update(tabId, {
+        url: buildBlockedPageUrl(blockedPageBase, {
+            siteKey: state.siteKey,
+            limitMinutes: state.limitMinutes,
+            isBlocked: state.isBlocked || state.isCategoryBlocked,
+            targetUrl: urlString
+        })
+    }).catch(() => undefined);
+}
+
+// `target` is deliberately last and unencoded: DNR's regexSubstitution cannot
+// percent-encode the matched URL, so both redirect paths must agree on a
+// convention the blocked page can parse back out of the raw query string.
+function buildBlockedPageUrl(blockedPageBase, { siteKey, limitMinutes, isBlocked, targetUrl }) {
+    const query = [
+        `site=${encodeURIComponent(siteKey || '')}`,
+        `limitMinutes=${encodeURIComponent(limitMinutes ?? '')}`,
+        `blocked=${Boolean(isBlocked)}`,
+        `target=${targetUrl || ''}`
+    ].join('&');
+
+    return `${blockedPageBase}?${query}`;
 }
 
 async function syncBlockingRules() {
     const settings = await getSettings();
     const usageByHostname = await getTodayUsageByHostname();
     const categoryMap = await getCategoryMap();
+    const { activeKeys: activeGraceKeys } = await getGraceState();
     const blockedPageBase = chrome.runtime.getURL('html/blocked.html');
     const rulesToCreate = [];
 
+    // Blocked-site entries are hard blocks: grace never suppresses these.
     for (const siteKey of settings.blockedSites) {
         rulesToCreate.push({ siteKey, limitMinutes: 0, isBlocked: true });
     }
 
     for (const [siteKey, limitMinutes] of Object.entries(settings.siteLimitsByHostname)) {
-        if (settings.blockedSites.includes(siteKey)) {
+        if (settings.blockedSites.includes(siteKey) || activeGraceKeys.has(siteKey)) {
             continue;
         }
         const usedMinutes = roundSecondsToMinutes(usageByHostname[siteKey] || 0);
@@ -384,16 +565,25 @@ async function syncBlockingRules() {
         }
     }
 
+    // A regex rule has no single site key to skip, so graced hostnames are
+    // carved out of it instead. Only category *limits* are carved out; an
+    // explicitly blocked category stays hard.
+    const gracedDomains = Array.from(activeGraceKeys).map((siteKey) => siteKey.split('/')[0]);
+
     const existingSiteKeys = new Set(rulesToCreate.map((r) => r.siteKey));
     for (const categoryId of blockedCategorySet) {
         const isExplicitlyBlocked = settings.blockedCategories.includes(categoryId);
         const limitMinutes = isExplicitlyBlocked ? 0 : (settings.categoryLimitsById[categoryId] ?? 0);
 
         for (const [siteKey, cat] of Object.entries(categoryMap.siteToCategory)) {
-            if (cat === categoryId && !existingSiteKeys.has(siteKey)) {
-                rulesToCreate.push({ siteKey, limitMinutes, isBlocked: isExplicitlyBlocked });
-                existingSiteKeys.add(siteKey);
+            if (cat !== categoryId || existingSiteKeys.has(siteKey)) {
+                continue;
             }
+            if (!isExplicitlyBlocked && activeGraceKeys.has(siteKey)) {
+                continue;
+            }
+            rulesToCreate.push({ siteKey, limitMinutes, isBlocked: isExplicitlyBlocked });
+            existingSiteKeys.add(siteKey);
         }
 
         for (const rule of categoryMap.regexRules) {
@@ -403,44 +593,64 @@ async function syncBlockingRules() {
                     limitMinutes,
                     isBlocked: isExplicitlyBlocked,
                     isRegex: true,
-                    regexPattern: rule.regex.source
+                    regexPattern: rule.regex.source,
+                    excludedRequestDomains: isExplicitlyBlocked ? [] : gracedDomains
                 });
             }
         }
     }
 
-    const addRules = rulesToCreate.map((item, index) => buildDnrRule(index + 1, item, blockedPageBase));
-    const existing = await chrome.declarativeNetRequest.getDynamicRules();
-    await chrome.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: existing.map((r) => r.id),
-        addRules
-    });
+    await applyDynamicRules(rulesToCreate, blockedPageBase);
 
     const tabs = await chrome.tabs.query({});
     await Promise.all(
         tabs
             .filter((tab) => typeof tab.id === 'number' && tab.url?.startsWith('http'))
             .map(async (tab) => {
-                const state = buildCurrentSite(tab.url, usageByHostname, settings, categoryMap);
+                const state = buildCurrentSite(tab.url, usageByHostname, settings, categoryMap, activeGraceKeys);
                 if (!state.shouldOverlayBlock) {
                     return;
                 }
-                const blockedPageUrl = new URL(blockedPageBase);
-                blockedPageUrl.searchParams.set('site', state.siteKey || '');
-                blockedPageUrl.searchParams.set('limitMinutes', String(state.limitMinutes ?? ''));
-                blockedPageUrl.searchParams.set('blocked', String(Boolean(state.isBlocked)));
-                await chrome.tabs.update(tab.id, { url: blockedPageUrl.toString() }).catch(() => undefined);
+                await chrome.tabs.update(tab.id, {
+                    url: buildBlockedPageUrl(blockedPageBase, {
+                        siteKey: state.siteKey,
+                        limitMinutes: state.limitMinutes,
+                        isBlocked: state.isBlocked || state.isCategoryBlocked,
+                        targetUrl: tab.url
+                    })
+                }).catch(() => undefined);
             })
     );
 }
 
-function buildDnrRule(id, item, blockedPageBase) {
-    const { siteKey, limitMinutes, isBlocked, isRegex, regexPattern } = item;
-    const redirectUrl = `${blockedPageBase}?site=${encodeURIComponent(siteKey)}&limitMinutes=${limitMinutes}&blocked=${isBlocked}`;
+async function applyDynamicRules(rulesToCreate, blockedPageBase) {
+    const existing = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeRuleIds = existing.map((r) => r.id);
+
+    try {
+        await chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds,
+            addRules: rulesToCreate.map((item, index) => buildDnrRule(index + 1, item, blockedPageBase, true))
+        });
+    } catch (_error) {
+        // regexSubstitution only exists to carry the original URL through to the
+        // blocked page. If Chrome rejects it, fall back to static redirect URLs
+        // so enforcement still happens — the page just loses "View original URL"
+        // and sends "One more minute" to the site root instead.
+        await chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds,
+            addRules: rulesToCreate.map((item, index) => buildDnrRule(index + 1, item, blockedPageBase, false))
+        });
+    }
+}
+
+function buildDnrRule(id, item, blockedPageBase, preserveTarget) {
+    const { siteKey, limitMinutes, isBlocked, isRegex, regexPattern, excludedRequestDomains } = item;
 
     let regexFilter;
     if (isRegex) {
-        regexFilter = `(?i)^https?://[^/]*${regexPattern}[^/]*/`;
+        // `.*$` extends the match to the end of the URL so \0 is the full URL.
+        regexFilter = `(?i)^https?://[^/]*${regexPattern}[^/]*/.*$`;
     } else {
         const hostname = siteKey.includes('/') ? siteKey.split('/')[0] : siteKey;
         const pathPart = siteKey.includes('/') ? siteKey.slice(hostname.length) : '';
@@ -451,11 +661,22 @@ function buildDnrRule(id, item, blockedPageBase) {
             : `^https?://(?:[^/]*\\.)?${escapedHostname}(?:[/?#].*)?$`;
     }
 
+    // \0 is the whole matched URL, which every regexFilter above anchors to the
+    // end of the request URL.
+    const redirect = preserveTarget
+        ? { regexSubstitution: buildBlockedPageUrl(blockedPageBase, { siteKey, limitMinutes, isBlocked, targetUrl: '\\0' }) }
+        : { url: buildBlockedPageUrl(blockedPageBase, { siteKey, limitMinutes, isBlocked, targetUrl: '' }) };
+
+    const condition = { regexFilter, resourceTypes: ['main_frame'] };
+    if (excludedRequestDomains?.length) {
+        condition.excludedRequestDomains = excludedRequestDomains;
+    }
+
     return {
         id,
         priority: 1,
-        action: { type: 'redirect', redirect: { url: redirectUrl } },
-        condition: { regexFilter, resourceTypes: ['main_frame'] }
+        action: { type: 'redirect', redirect },
+        condition
     };
 }
 
@@ -468,10 +689,11 @@ async function getPopupData(dayOffset) {
     const selectedDayOffset = normalizeDayOffset(dayOffset);
     const selectedDayUsage = await getUsageByDayOffset(selectedDayOffset);
     const categoryMap = await getCategoryMap();
+    const { activeKeys } = await getGraceState();
 
     await syncActiveSessions();
 
-    const currentSite = buildCurrentSite(tab?.url, currentDayUsage, settings, categoryMap);
+    const currentSite = buildCurrentSite(tab?.url, currentDayUsage, settings, categoryMap, activeKeys);
 
     return {
         currentSite,
@@ -487,7 +709,7 @@ async function getPopupData(dayOffset) {
     };
 }
 
-function buildCurrentSite(urlString, usageByHostname, settings, categoryMap) {
+function buildCurrentSite(urlString, usageByHostname, settings, categoryMap, activeGraceKeys) {
     const parsed = safeParseUrl(urlString);
     if (!parsed || !isTrackableUrl(parsed)) {
         return {
@@ -497,6 +719,7 @@ function buildCurrentSite(urlString, usageByHostname, settings, categoryMap) {
             isTrackable: false,
             isBlocked: false,
             isOverLimit: false,
+            hasActiveGrace: false,
             shouldOverlayBlock: false
         };
     }
@@ -518,6 +741,12 @@ function buildCurrentSite(urlString, usageByHostname, settings, categoryMap) {
     const isSiteOverLimit = effectiveSiteLimitMinutes !== null && todayMinutes >= effectiveSiteLimitMinutes;
     const isCategoryOverLimit = effectiveCategoryLimitMinutes !== null && categoryUsageMinutes >= effectiveCategoryLimitMinutes;
     const isOverLimit = isSiteOverLimit || isCategoryOverLimit;
+    // Grace suppresses enforcement for a minute, but only where the block came
+    // from a time limit; a hard block ignores it.
+    const isHardBlocked = isBlocked || isCategoryBlocked;
+    const hasActiveGrace = !isHardBlocked && Boolean(
+        activeGraceKeys && buildUrlCandidates(parsed).some((candidate) => activeGraceKeys.has(candidate))
+    );
 
     return {
         siteKey,
@@ -533,7 +762,8 @@ function buildCurrentSite(urlString, usageByHostname, settings, categoryMap) {
         isTrackable: true,
         isBlocked,
         isOverLimit,
-        shouldOverlayBlock: isOverLimit
+        hasActiveGrace,
+        shouldOverlayBlock: isOverLimit && !hasActiveGrace
     };
 }
 

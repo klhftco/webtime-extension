@@ -26,6 +26,12 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - Treat blocked-site entries as immediate `0m` limits.
 - Enforce scheduled blocked windows for blocked sites.
 - Require a cooldown before changing protected settings such as the blocked-site list or enforcement state.
+- Offer a one-minute reprieve ("One more minute") on the blocked page, once per site key per local day.
+  - Only a minute-limit overrun is extendable. Blocked-site entries and blocked categories are hard blocks and refuse the reprieve.
+  - The reprieve suppresses enforcement for 60 seconds and then re-blocks; it does not clear the limit for the day.
+  - Usage keeps accumulating during the reprieve, so a limited site is immediately over its limit again when it ends.
+- Ship an in-extension walkthrough (options `Prevent disabling` tab) recommending Chrome's `URLBlocklist` policy to block `chrome://extensions`, so disabling the extension takes a deliberate detour.
+  - The tab is guidance only; the extension never writes policy itself.
 
 ## v0 Non-goals
 
@@ -34,7 +40,7 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - Schedule-based limits beyond the existing blocked-window behavior.
 - Per-site custom schedules.
 - Password-based protection against disabling the extension.
-- Preventing Chrome-level disable or uninstall.
+- Preventing Chrome-level disable or uninstall. The extension only documents the `URLBlocklist` policy as a user-applied speed bump; it does not enforce, detect, or require it.
 - Syncing analytics to a backend.
 - Cross-browser support beyond MV3 Chrome compatibility.
 
@@ -90,6 +96,10 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - dark mode/color scheming
 - buy me a coffee?
 - popup header gets cutoff
+
+## v0.1.4
+- ~~"one more minute" button on the blocked page, once per site key per day (limit overruns only)~~
+- ~~`Prevent disabling` options tab: walkthrough for blocking `chrome://extensions` via the `URLBlocklist` Chrome policy~~
 
 ## Design Principles
 

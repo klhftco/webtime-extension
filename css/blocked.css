@@ -83,6 +83,10 @@ a {
     margin-top: 20px;
 }
 
+.blocked-actions {
+    flex-wrap: wrap;
+}
+
 .blocked-actions button {
     border: 0;
     border-radius: 999px;
@@ -92,6 +96,27 @@ a {
     cursor: pointer;
 }
 
+.blocked-actions__secondary {
+    color: var(--text) !important;
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+}
+
+.blocked-actions button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
 .blocked-actions a {
     color: var(--text);
+}
+
+.blocked-note {
+    margin: 0.9rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.blocked-note a {
+    color: var(--accent);
 }

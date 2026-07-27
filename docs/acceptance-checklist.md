@@ -6,7 +6,7 @@ Use this list before considering a change ready.
 
 - `npm run check` passes.
 - The extension loads as an unpacked MV3 extension with no manifest errors.
-- Popup, service worker, content script, and options page initialize without uncaught errors.
+- Popup, service worker, and options page initialize without uncaught errors.
 
 ## v0 Behavior
 
@@ -22,11 +22,42 @@ Use this list before considering a change ready.
 - A per-site limit can be saved in the options page for a normalized site key.
 - Equivalent hostnames such as `www.youtube.com` and `youtube.com` resolve to the same normalized root entry.
 - A path-specific entry such as `youtube.com/shorts` is matched separately from `youtube.com`.
-- A site that exceeds its assigned per-site limit is redirected to the blocked page.
+- A site that exceeds its assigned per-site limit is redirected to the blocked page by a DNR rule on a fresh navigation, and an already-open over-limit tab is redirected within about one heartbeat.
 - Time keeps accumulating for a passively-viewed tab across service-worker restarts: after sitting on a limited site (no clicks) past its limit, the site is blocked within about one heartbeat rather than allowing unbounded over-limit browsing.
 - A site on the blocked-site list behaves like a site with a `0m` limit.
 - A site key with no explicit limit and not on the blocked-site list is not blocked by the limit rule alone.
 - Protected settings changes require the configured cooldown flow.
+- A fresh navigation to an over-limit site is caught by the DNR rule before the site is contacted: the blocked page appears without the site's own content flashing first.
+- Adding `web_accessible_resources` introduces no new permission warning: reloading the unpacked extension in `chrome://extensions` shows the same permission list as before.
+
+## One More Minute
+
+- On a site blocked by a per-site or category minute limit, the blocked page shows an enabled `One more minute` button.
+- Clicking it returns to the exact page that was blocked, including its query string, and the site stays browsable for about 60 seconds.
+- After roughly 60 seconds the site redirects back to the blocked page without needing a browser restart or a manual reload.
+- Returning to the blocked page for that site shows the button disabled with a message that today's extra minute is spent.
+- A second, different limited site still offers its own extra minute the same day.
+- The allowance resets the next local day.
+- On a site on the blocked-site list, no `One more minute` button appears; the page explains blocked sites cannot be extended.
+- On a site blocked by a blocked *category*, no button appears either.
+- On a site over a *category minute limit*, the button does appear and works.
+- Granting an extra minute on `youtube.com/shorts` does not unblock `youtube.com` itself.
+- Usage keeps accumulating during the extra minute: the popup's today total for that site continues to rise.
+- The service worker refuses a grant for a hard-blocked site even if the request is replayed by hand from the blocked page console.
+
+## Prevent Disabling Tab
+
+- The options page shows a `Prevent disabling` tab alongside the existing tabs.
+- The blocked page's "Add a speed bump" link opens the options page with that tab already active.
+- Opening `html/options.html` with no hash still lands on the Settings tab, and an unknown hash is ignored.
+- The long-form styles in that tab do not change the appearance of the Settings, Weekly usage, Protection, Usage data, or Experimental tabs.
+- The tab opens with a platform preselected, and Windows, macOS, and Linux each show complete steps.
+- The selected platform tab is remembered on reload.
+- Each code block's `Copy` button copies the full snippet.
+- The `ExtensionSettings` snippet shows this extension's real ID rather than a placeholder.
+- The tab states plainly that the policy does not stop removal from the toolbar right-click menu.
+- Following the steps for the current platform makes `chrome://extensions` show Chrome's "blocked by your administrator" page, and `chrome://policy` lists `URLBlocklist` with status OK.
+- The documented undo command restores access to `chrome://extensions`.
 
 ## Documentation
 

@@ -31,5 +31,11 @@
     "idle",
     "storage",
     "tabs"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["html/blocked.html"],
+      "matches": ["<all_urls>"]
+    }
   ]
 }

@@ -27,6 +27,8 @@ Use this list before considering a change ready.
 - A site on the blocked-site list behaves like a site with a `0m` limit.
 - A site key with no explicit limit and not on the blocked-site list is not blocked by the limit rule alone.
 - Protected settings changes require the configured cooldown flow.
+- A fresh navigation to an over-limit site is caught by the DNR rule before the site is contacted: the blocked page appears without the site's own content flashing first.
+- Adding `web_accessible_resources` introduces no new permission warning: reloading the unpacked extension in `chrome://extensions` shows the same permission list as before.
 
 ## One More Minute
 

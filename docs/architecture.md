@@ -99,6 +99,14 @@
 - `idle`: detect screen lock and system suspend so tracking is paused while the device is not in active use.
 - Host permissions: required for content-script evaluation and redirect enforcement on web pages.
 
+## Web Accessible Resources
+
+- `html/blocked.html` is listed in `web_accessible_resources` with `matches: ["<all_urls>"]`.
+- This is **not** a permission. The `permissions` array is unchanged and Chrome shows no additional install warning. The grant points outward: it lets web pages reach one extension file, and gives the extension no new capability.
+- It is required because a DNR rule cannot redirect a public request to a resource that is not web accessible — Chrome rejects the redirect even though the extension owns the target. Without it, blocking falls back to the `tabs`-based paths, so the blocked site is actually requested and begins rendering before the tab is replaced.
+- `matches` cannot be narrowed to the user's configured sites: `web_accessible_resources` is static in the manifest, while blocked sites are user settings.
+- The cost is fingerprinting — any page can fetch the URL to detect that WebTime is installed. That is already largely inferable from the redirect itself. Only this one static file is exposed, and it carries no data: everything it displays arrives as query parameters at redirect time.
+
 ## Service Worker State Durability
 
 - The active timing state (`activeSessions`, `hostnameSessionMap`, `tabLastUrl`) lives in memory for fast access but is mirrored to `chrome.storage.session` on every mutation.

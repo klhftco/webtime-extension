@@ -21,7 +21,7 @@ Use this repo as a small harness, not just a code dump.
 
 3. Make the smallest viable implementation.
    - Start from the current minimal MV3 scaffold.
-   - Add one runtime surface at a time, such as a popup script, options page, service worker, or content script.
+   - Add one runtime surface at a time, such as a popup script, options page, or service worker.
 
 4. Validate the result.
    - Run `npm run check`.

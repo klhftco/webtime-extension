@@ -2,10 +2,10 @@
 
 ## Runtime Pieces
 
-- `manifest.json`: MV3 manifest defining the popup, background service worker, content script, options page, and required permissions.
-- `background` service worker: owns active-window tab tracking, site status evaluation, limit checks, blocked-list checks, and popup data assembly.
+- `manifest.json`: MV3 manifest defining the popup, background service worker, options page, and required permissions. No content scripts and no `host_permissions` are declared.
+- `background` service worker: owns active-window tab tracking, site status evaluation, limit checks, blocked-list checks, declarativeNetRequest (DNR) rule synchronization, and popup data assembly.
 - `popup`: shows current-site status, assigned limit if one exists, and a day-navigable pie-chart breakdown of tracked usage by site key.
-- `content` script: redirects a blocked page to an internal extension-owned blocked screen.
+- blocking is enforced by DNR dynamic redirect rules that send a matching top-level (`main_frame`) request to an internal extension-owned blocked page (`html/blocked.html`); there is no content script.
 - `options` page: manages blocked sites, per-site daily limits, schedules, cooldown-protected changes, and a weekly stacked-bar usage view with a selectable detail list.
   - Category settings use an offline category map bundled in the extension.
 - `blocked` page (`html/blocked.html`): explains why a site was blocked and hosts the once-a-day "One more minute" control.
@@ -48,7 +48,7 @@
 - If the resolved site key is on the blocked-site list, treat its effective limit as `0` minutes.
 - If no per-site limit exists and the site key is not blocked, the site is not over-limit.
 - If an effective limit exists, compare today's usage against that limit.
-- Redirect to the blocked page when the site is over its effective limit, or inside a blocked schedule window.
+- Redirect to the blocked page when the site is over its effective limit, or inside a blocked schedule window. Redirection is performed by a DNR dynamic rule whose `regexFilter` matches the resolved site key (hostname, optional path, or a category regex) on `main_frame` requests, with an `action.type` of `redirect` targeting `html/blocked.html`.
 - For category limits:
   - Resolve the site key's category, if any.
   - Compute the category's total usage as the sum of all site keys mapped to that category.
@@ -92,13 +92,16 @@
   - a default top-30 list ranked by total weekly usage
   - an unfiltered selected-day list sorted by usage with second-level resolution
 
-## Likely Permissions
+## Permissions
 
 - `storage`: persist settings and local usage.
-- `tabs`: inspect the active tab in the active window.
+- `tabs`: inspect the active tab in the active window, and navigate already-open over-limit tabs to the blocked page (the heartbeat fallback in `syncBlockingRules`).
 - `alarms`: periodically flush tracked time and re-sync blocking rules in MV3 (`heartbeat`), and re-block a site the moment its "One more minute" grant expires (`grace-expiry`).
 - `idle`: detect screen lock and system suspend so tracking is paused while the device is not in active use.
-- Host permissions: required for content-script evaluation and redirect enforcement on web pages.
+- `declarativeNetRequest`: register dynamic redirect rules, built only from local settings/usage, that send over-limit or blocked `main_frame` requests to the extension's own `html/blocked.html`.
+- `declarativeNetRequestWithHostAccess`: allows the redirect rules to act on the user's configured sites without broad `host_permissions` or the "read and change all your data on the websites you visit" install warning. This is the narrower permission deliberately chosen in place of host permissions + a content script.
+
+Note: no `host_permissions` are declared. DNR `redirect` rules only act on hosts the extension has access to, so instant blocking on a fresh navigation depends on this; the `tabs`-based heartbeat sweep catches already-open over-limit tabs within roughly one heartbeat as a fallback. Verify navigation-time redirect behavior in `chrome://extensions` when changing this.
 
 ## Web Accessible Resources
 
@@ -119,7 +122,7 @@
 ## Key Tradeoffs
 
 - Time tracking is approximate and event-driven, not perfectly continuous.
-- Redirecting to an internal blocked page is easier to build and reason about than network-level blocking.
+- DNR redirect to an internal blocked page is easier to build, more privacy-preserving, and avoids the broad host-access warning compared to a content script with host permissions; it is still simpler to reason about than network-level filtering.
 - Limits are per-site only in v0; group rules and richer schedule logic are deferred.
 - Storing limits in minutes keeps editing simpler, while usage remains in seconds for tracking precision.
 - Historical daily insights require a clear retention rule; the product target is 4 weeks of prior day-level visibility.

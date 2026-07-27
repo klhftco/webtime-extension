@@ -6,7 +6,7 @@ Use this list before considering a change ready.
 
 - `npm run check` passes.
 - The extension loads as an unpacked MV3 extension with no manifest errors.
-- Popup, service worker, content script, and options page initialize without uncaught errors.
+- Popup, service worker, and options page initialize without uncaught errors.
 
 ## v0 Behavior
 
@@ -22,7 +22,7 @@ Use this list before considering a change ready.
 - A per-site limit can be saved in the options page for a normalized site key.
 - Equivalent hostnames such as `www.youtube.com` and `youtube.com` resolve to the same normalized root entry.
 - A path-specific entry such as `youtube.com/shorts` is matched separately from `youtube.com`.
-- A site that exceeds its assigned per-site limit is redirected to the blocked page.
+- A site that exceeds its assigned per-site limit is redirected to the blocked page by a DNR rule on a fresh navigation, and an already-open over-limit tab is redirected within about one heartbeat.
 - Time keeps accumulating for a passively-viewed tab across service-worker restarts: after sitting on a limited site (no clicks) past its limit, the site is blocked within about one heartbeat rather than allowing unbounded over-limit browsing.
 - A site on the blocked-site list behaves like a site with a `0m` limit.
 - A site key with no explicit limit and not on the blocked-site list is not blocked by the limit rule alone.

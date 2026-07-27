@@ -8,6 +8,7 @@
 - `content` script: redirects a blocked page to an internal extension-owned blocked screen.
 - `options` page: manages blocked sites, per-site daily limits, schedules, cooldown-protected changes, and a weekly stacked-bar usage view with a selectable detail list.
   - Category settings use an offline category map bundled in the extension.
+- `blocked` page (`html/blocked.html`): explains why a site was blocked and hosts the once-a-day "One more minute" control.
 
 ## v0 Tracking Model
 
@@ -21,6 +22,7 @@
 
 - Local usage store:
   - `usageByDay[isoDate][siteKey] = seconds`
+  - `graceBySiteKey[siteKey] = { dayKey, expiresAt }` — the once-a-day "One more minute" grant. Entries whose `dayKey` is not the current local day are pruned on read, which is what enforces the daily reset; `expiresAt` separates a grant that is still running from one already spent today.
   - retain daily buckets for up to 4 weeks of prior insights
   - use a local-day key rather than a UTC-day key for product-facing daily views
   - support either:
@@ -52,6 +54,26 @@
   - If a category limit exists, compare category usage against that limit.
   - Block if either the site-level rule or category-level rule requires blocking.
 
+## One More Minute (grace)
+
+- The blocked page can grant a single 60-second reprieve per site key per local day.
+- Eligibility is decided by `resolveGraceDenialReason`, and the service worker re-evaluates it in `grantGrace` rather than trusting the page, which only supplies a site key.
+- Only a minute-limit overrun is extendable. A site key matching the blocked-site list or a blocked category is a hard block and is refused; `buildCurrentSite` therefore ignores grace when `isBlocked || isCategoryBlocked`.
+- A grant suppresses enforcement rather than clearing the limit:
+  - `syncBlockingRules` skips the limit-derived DNR rule for a graced site key, and skips it in the heartbeat tab sweep.
+  - Blocked-site rules and explicitly blocked categories are always emitted regardless of grace.
+  - A category *regex* rule has no single site key to skip, so graced hostnames are carved out with `condition.excludedRequestDomains` instead — and only when the category was added by a limit, not by an explicit block.
+- A one-shot `grace-expiry` alarm fires at the earliest active expiry and re-runs `syncBlockingRules`, so the site re-blocks on time instead of waiting up to a full heartbeat. The heartbeat is still the backstop.
+- Usage keeps accumulating during the reprieve, so a limited site is over its limit again the moment it ends.
+
+## Blocked Page URL Convention
+
+- `buildBlockedPageUrl` is the single builder for `html/blocked.html` links, used by both redirect paths.
+- `site`, `limitMinutes`, and `blocked` are percent-encoded query params. `target` is always **last and unencoded**.
+- That convention exists because the DNR path builds its URL with `redirect.regexSubstitution`, inserting the matched URL as `\0`; DNR cannot percent-encode. Every `regexFilter` is anchored to the end of the request URL so `\0` is the whole URL.
+- `js/blocked.js` therefore reads `target` by slicing the raw query string after `&target=` rather than via `URLSearchParams`, which would truncate a target containing `&`. It accepts the value only if it parses as an `http`/`https` URL, so the parameter cannot inject a `javascript:` or extension URL into the page's links.
+- If Chrome rejects the substitution rules, `applyDynamicRules` retries with static `redirect.url` rules. Enforcement still holds; the blocked page just loses the original URL and sends "One more minute" to the site root.
+
 ## UI Surfaces
 
 - `popup` reads current-site usage, limit status, and today's site-key breakdown.
@@ -72,7 +94,7 @@
 
 - `storage`: persist settings and local usage.
 - `tabs`: inspect the active tab in the active window.
-- `alarms`: periodically flush tracked time in MV3.
+- `alarms`: periodically flush tracked time and re-sync blocking rules in MV3 (`heartbeat`), and re-block a site the moment its "One more minute" grant expires (`grace-expiry`).
 - `idle`: detect screen lock and system suspend so tracking is paused while the device is not in active use.
 - Host permissions: required for content-script evaluation and redirect enforcement on web pages.
 
@@ -95,6 +117,8 @@
 - Category limits require a taxonomy and a mapping from site keys to categories; these need to be curated or user-editable.
 - Offline categories can include regex fallbacks for hostname-only matching (e.g. adult patterns).
 - Password-based settings changes require local hashing and do not protect against extension removal.
+- "One more minute" is deliberately asymmetric: a time limit is a budget and can be stretched once a day, while a blocked-site or blocked-category entry is a statement of intent and stays hard. Making everything extendable would mean nothing in the extension is ever a real block.
+- Grace is stored per site key rather than as a single global allowance, matching how limits, blocks, and usage are already keyed. The cost is that a user with many limited sites gets many extra minutes per day.
 
 ## When Changing Architecture
 

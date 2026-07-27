@@ -28,6 +28,21 @@ Use this list before considering a change ready.
 - A site key with no explicit limit and not on the blocked-site list is not blocked by the limit rule alone.
 - Protected settings changes require the configured cooldown flow.
 
+## One More Minute
+
+- On a site blocked by a per-site or category minute limit, the blocked page shows an enabled `One more minute` button.
+- Clicking it returns to the exact page that was blocked, including its query string, and the site stays browsable for about 60 seconds.
+- After roughly 60 seconds the site redirects back to the blocked page without needing a browser restart or a manual reload.
+- Returning to the blocked page for that site shows the button disabled with a message that today's extra minute is spent.
+- A second, different limited site still offers its own extra minute the same day.
+- The allowance resets the next local day.
+- On a site on the blocked-site list, no `One more minute` button appears; the page explains blocked sites cannot be extended.
+- On a site blocked by a blocked *category*, no button appears either.
+- On a site over a *category minute limit*, the button does appear and works.
+- Granting an extra minute on `youtube.com/shorts` does not unblock `youtube.com` itself.
+- Usage keeps accumulating during the extra minute: the popup's today total for that site continues to rise.
+- The service worker refuses a grant for a hard-blocked site even if the request is replayed by hand from the blocked page console.
+
 ## Documentation
 
 - `AGENTS.md` remains short and points to `docs/`.

@@ -12,7 +12,21 @@ const STORAGE_KEYS = {
         'slowModeSeconds',
         'trackingMode'
     ],
-    local: ['usageByDay', 'pickupsByDay', 'settingsOpenedAt']
+    local: ['usageByDay', 'pickupsByDay', 'settingsOpenedAt', 'graceBySiteKey']
+};
+
+// "One more minute": a single self-granted reprieve per site key per local day.
+// Only a minute-limit overrun can be extended; blocked-site and blocked-category
+// entries stay hard blocks (see docs/product.md).
+const GRACE_MINUTES = 1;
+const GRACE_MS = GRACE_MINUTES * 60 * 1000;
+
+const GRACE_DENIAL_REASONS = {
+    'blocked-site': 'Blocked sites cannot be extended.',
+    'blocked-category': 'Blocked categories cannot be extended.',
+    'not-over-limit': 'This site is not over a time limit.',
+    untracked: 'This site is not tracked.',
+    'used-today': 'The extra minute for this site was already used today.'
 };
 
 const DEFAULT_SETTINGS = {

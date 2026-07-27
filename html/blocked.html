@@ -18,9 +18,12 @@
         </section>
 
         <div class="blocked-actions">
-            <button type="button" data-role="open-options">Open settings</button>
+            <button type="button" data-role="grace" hidden>One more minute</button>
+            <button type="button" class="blocked-actions__secondary" data-role="open-options">Open settings</button>
             <a data-role="view-target" href="#" rel="noreferrer">View original URL</a>
         </div>
+
+        <p class="blocked-note" data-role="grace-status"></p>
     </main>
 
     <script src="../js/blocked.js"></script>

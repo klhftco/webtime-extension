@@ -12,7 +12,7 @@ const STORAGE_KEYS = {
         'slowModeSeconds',
         'trackingMode'
     ],
-    local: ['usageByDay', 'pickupsByDay', 'settingsOpenedAt', 'graceBySiteKey']
+    local: ['usageByDay', 'pickupsByDay', 'settingsOpenedAt', 'graceBySiteKey', 'protectPlatform']
 };
 
 // "One more minute": a single self-granted reprieve per site key per local day.

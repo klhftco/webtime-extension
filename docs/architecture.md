@@ -9,6 +9,7 @@
 - `options` page: manages blocked sites, per-site daily limits, schedules, cooldown-protected changes, and a weekly stacked-bar usage view with a selectable detail list.
   - Category settings use an offline category map bundled in the extension.
 - `blocked` page (`html/blocked.html`): explains why a site was blocked and hosts the once-a-day "One more minute" control.
+- `protect` page (`html/protect.html`): a static, platform-tabbed walkthrough for applying Chrome's `URLBlocklist` policy to `chrome://extensions`. It is documentation only — it reads `chrome.runtime.id` to fill in an `ExtensionSettings` snippet and stores the last-selected platform tab, and writes no policy and no settings. Linked from the options Protection tab and the blocked page.
 
 ## v0 Tracking Model
 
@@ -119,6 +120,7 @@
 - Password-based settings changes require local hashing and do not protect against extension removal.
 - "One more minute" is deliberately asymmetric: a time limit is a budget and can be stretched once a day, while a blocked-site or blocked-category entry is a statement of intent and stays hard. Making everything extendable would mean nothing in the extension is ever a real block.
 - Grace is stored per site key rather than as a single global allowance, matching how limits, blocks, and usage are already keyed. The cost is that a user with many limited sites gets many extra minutes per day.
+- Blocking `chrome://extensions` is left to Chrome policy applied by the user, documented in the `protect` page. The extension deliberately holds no policy-writing capability and gains no permission from this feature.
 
 ## When Changing Architecture
 

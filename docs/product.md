@@ -97,6 +97,10 @@ Build a simple Chrome extension that helps a user reduce time on distracting web
 - buy me a coffee?
 - popup header gets cutoff
 
+## v0.1.4
+- ~~"one more minute" button on the blocked page, once per site key per day (limit overruns only)~~
+- ~~instruction page for blocking `chrome://extensions` via the `URLBlocklist` Chrome policy~~
+
 ## Design Principles
 
 - Fast to understand.
